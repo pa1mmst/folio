@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}folio{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    :root {
+      --bg-page: #08090a;
+      --bg-panel: #0f1011;
+      --bg-elevated: #191a1b;
+      --bg-hover: #28282c;
+      --text-primary: #f7f8f8;
+      --text-secondary: #d0d6e0;
+      --text-muted: #8a8f98;
+      --accent: #5e6ad2;
+      --accent-violet: #7170ff;
+      --border-subtle: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-full: 9999px;
+      --space: 8px;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      background:var(--bg-page);
+      color:var(--text-primary);
+      font-size:15px;font-weight:400;line-height:1.6;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+      min-height:100vh;
+    }
+    a { color:var(--accent);text-decoration:none;transition:color .15s; }
+    a:hover { color:var(--accent-violet); }
+    .app-layout { display:flex;max-width:1200px;margin:0 auto;min-height:100vh; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-brand"><a href="/" class="sidebar-logo">folio</a></div>
+      <nav class="sidebar-nav">
+        <a href="/" class="sidebar-link{% if active == 'notes' %} active{% endif %}">Notes</a>
+        <a href="/graph" class="sidebar-link{% if active == 'graph' %} active{% endif %}">Graph</a>
+      </nav>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Tags</div>
+        <div class="sidebar-tags">
+          {% for tag in tags %}
+          <a href="/?tag={{ tag.tag }}" class="sidebar-tag">#{{ tag.tag }}</a>
+          {% endfor %}
+        </div>
+      </div>
+    </aside>
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

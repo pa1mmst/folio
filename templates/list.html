@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Notes — folio{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Notes</h1>
+  <a href="/edit/new" class="btn btn-primary">New Note</a>
+</div>
+<div class="search-bar">
+  <input type="text" name="q" placeholder="Search notes..." value="{{ q }}" id="searchInput"
+         onkeydown="if(event.key==='Enter')window.location='/?q='+encodeURIComponent(this.value)+'{{ tag_filter }}'">
+  <select onchange="window.location='/?tag='+encodeURIComponent(this.value)+'&q={{ q }}'">
+    <option value="">All tags</option>
+    {% for tag in all_tags %}
+    <option value="{{ tag.tag }}" {% if tag.tag == active_tag %}selected{% endif %}>{{ tag.tag }} ({{ tag.cnt }})</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="note-list">
+  {% for note in notes %}
+  <div class="note-card">
+    <h3><a href="/note/{{ note.name }}">{{ note.name }}</a></h3>
+    <div class="meta">{{ note.updated_at[:10] }}</div>
+    <div class="tags">
+      {% for tag in note.tags[:5] %}
+      <a href="/?tag={{ tag }}" class="tag">#{{ tag }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty"><p>No notes yet. Create your first one!</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
