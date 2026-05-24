@@ -63,3 +63,33 @@ class TestNoteAPI:
     def test_404_page(self, client):
         r = client.get("/note/nonexistent-note-abc")
         assert r.status_code == 200
+
+
+class TestBacklinks:
+    def test_backlinks_empty(self, client):
+        client.post("/api/note", json={"name": "note-a", "content": "# Note A\nNo links here"})
+        r = client.get("/api/backlinks/note-a")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_backlinks_single(self, client):
+        client.post("/api/note", json={"name": "note-b", "content": "# Note B\nSee [[note-a]]"})
+        r = client.get("/api/backlinks/note-a")
+        assert r.status_code == 200
+        data = r.json()
+        assert "note-b" in data
+
+    def test_backlinks_multiple(self, client):
+        client.post("/api/note", json={"name": "note-c", "content": "# C\n[[note-a]] too"})
+        client.post("/api/note", json={"name": "note-d", "content": "# D\nAlso [[note-a]]"})
+        r = client.get("/api/backlinks/note-a")
+        data = r.json()
+        assert "note-b" in data
+        assert "note-c" in data
+        assert "note-d" in data
+
+    def test_backlinks_not_self(self, client):
+        """Backlinks should not include the note itself."""
+        r = client.get("/api/backlinks/note-a")
+        data = r.json()
+        assert "note-a" not in data

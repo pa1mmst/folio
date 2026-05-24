@@ -100,3 +100,14 @@ def get_all_note_names():
     rows = conn.execute("SELECT name FROM notes ORDER BY name").fetchall()
     conn.close()
     return [r["name"] for r in rows]
+
+
+def get_backlinks(note_name):
+    """Get all notes that link to the given note via wiki-links."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT source_note FROM links WHERE target_note = ? ORDER BY source_note",
+        (note_name,),
+    ).fetchall()
+    conn.close()
+    return [r["source_note"] for r in rows]

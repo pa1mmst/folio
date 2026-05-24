@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from database import init_db, index_note, remove_note, search_notes, get_all_tags, get_all_links, get_all_note_names
+from database import init_db, index_note, remove_note, search_notes, get_all_tags, get_all_links, get_all_note_names, get_backlinks
 from vault import (
     read_note, write_note, delete_note, list_notes,
     parse_tags, parse_wikilinks, strip_frontmatter, note_exists,
@@ -262,6 +262,11 @@ async def view_note(name: str):
     html_content = md_to_html(content)
     tags = parse_tags(note["content"])
     tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags)
+    backlinks = get_backlinks(name)
+    backlinks_html = ""
+    if backlinks:
+        items = "".join(f'<li><a href="/note/{b}">{b}</a></li>' for b in backlinks)
+        backlinks_html = f'<div class="backlinks" style="margin-top:24px; padding:12px; background:#16213e; border-radius:8px; border:1px solid #333;"><h4 style="margin-bottom:8px; color:#888; font-size:0.85rem;">🔗 Backlinks</h4><ul style="padding-left:20px;">{items}</ul></div>'
 
     body = f"""
     {header("notes")}
@@ -270,6 +275,7 @@ async def view_note(name: str):
         <h2>{name}</h2>
         <div class="tags">{tags_html}</div>
         <div class="content">{html_content}</div>
+        {backlinks_html}
         <div style="margin-top:24px; display:flex; gap:12px;">
             <a href="/edit/{name}" class="btn">✏️ Edit</a>
             <button class="btn btn-danger" onclick="if(confirm('Delete?'))fetch('/api/note/{name}',{{method:'DELETE'}}).then(()=>window.location='/')">🗑 Delete</button>
@@ -428,6 +434,11 @@ def api_graph():
     for l in links:
         link_data.append({"source": l["source_note"], "target": l["target_note"]})
     return JSONResponse({"nodes": nodes, "links": link_data})
+
+
+@app.get("/api/backlinks/{name}")
+def api_backlinks(name: str):
+    return JSONResponse(get_backlinks(name))
 
 
 @app.post("/api/note")
