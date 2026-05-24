@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from database import init_db, index_note, remove_note, search_notes, get_all_tags, get_all_links, get_all_note_names
+from database import init_db, index_note, remove_note, search_notes, get_all_tags, get_all_links, get_all_note_names, get_backlinks
 from vault import (
     read_note, write_note, delete_note, list_notes,
     parse_tags, parse_wikilinks, strip_frontmatter, note_exists,
@@ -169,6 +169,11 @@ a:hover { text-decoration: underline; }
 .back-link { display: inline-block; margin-bottom: 16px; color: #888; }
 .graph-container { width: 100%; height: calc(100vh - 160px); background: #16213e; border-radius: 8px; border: 1px solid #333; }
 .empty { text-align: center; padding: 60px; color: #666; }
+.backlinks-panel { margin-top: 32px; padding: 16px; background: #16213e; border-radius: 8px; border: 1px solid #333; }
+.backlinks-panel h3 { font-size: 0.95rem; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.backlinks-panel .backlink-item { display: block; padding: 8px 12px; margin-bottom: 4px; border-radius: 4px; color: #7c83fd; font-size: 0.9rem; }
+.backlinks-panel .backlink-item:hover { background: #2a2a4a; text-decoration: none; }
+.backlinks-panel .backlink-empty { color: #666; font-size: 0.85rem; font-style: italic; }
 """
 
 
@@ -263,6 +268,16 @@ async def view_note(name: str):
     tags = parse_tags(note["content"])
     tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags)
 
+    backlinks = get_backlinks(name)
+    if backlinks:
+        backlinks_items = "".join(
+            f'<a href="/note/{bl["source_note"]}" class="backlink-item">→ {bl["source_note"]}</a>'
+            for bl in backlinks
+        )
+        backlinks_html = f'<div class="backlinks-panel"><h3>Backlinks</h3>{backlinks_items}</div>'
+    else:
+        backlinks_html = '<div class="backlinks-panel"><h3>Backlinks</h3><div class="backlink-empty">No backlinks</div></div>'
+
     body = f"""
     {header("notes")}
     <div class="note-view">
@@ -274,6 +289,7 @@ async def view_note(name: str):
             <a href="/edit/{name}" class="btn">✏️ Edit</a>
             <button class="btn btn-danger" onclick="if(confirm('Delete?'))fetch('/api/note/{name}',{{method:'DELETE'}}).then(()=>window.location='/')">🗑 Delete</button>
         </div>
+        {backlinks_html}
     </div>
     """
     return render_page(name, body)
@@ -428,6 +444,11 @@ def api_graph():
     for l in links:
         link_data.append({"source": l["source_note"], "target": l["target_note"]})
     return JSONResponse({"nodes": nodes, "links": link_data})
+
+
+@app.get("/api/backlinks/{name}")
+def api_backlinks(name: str):
+    return JSONResponse(get_backlinks(name))
 
 
 @app.post("/api/note")

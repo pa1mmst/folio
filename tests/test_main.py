@@ -63,3 +63,36 @@ class TestNoteAPI:
     def test_404_page(self, client):
         r = client.get("/note/nonexistent-note-abc")
         assert r.status_code == 200
+
+
+class TestBacklinks:
+    def test_backlinks_api_empty(self, client):
+        r = client.get("/api/backlinks/nonexistent")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_backlinks_api(self, client):
+        client.post("/api/note", json={"name": "note-a", "content": "Links to [[note-b]] and [[note-c]]"})
+        client.post("/api/note", json={"name": "note-d", "content": "Also links to [[note-b]]"})
+        r = client.get("/api/backlinks/note-b")
+        assert r.status_code == 200
+        data = r.json()
+        names = [d["source_note"] for d in data]
+        assert "note-a" in names
+        assert "note-d" in names
+        assert len(names) == 2
+
+    def test_backlinks_note_page_shows_panel(self, client):
+        client.post("/api/note", json={"name": "linker", "content": "See [[target-note]]"})
+        client.post("/api/note", json={"name": "target-note", "content": "Target content"})
+        r = client.get("/note/target-note")
+        assert r.status_code == 200
+        assert "backlinks-panel" in r.text
+        assert "linker" in r.text
+
+    def test_backlinks_note_page_no_backlinks(self, client):
+        client.post("/api/note", json={"name": "orphan", "content": "No links to me"})
+        r = client.get("/note/orphan")
+        assert r.status_code == 200
+        assert "backlinks-panel" in r.text
+        assert "No backlinks" in r.text

@@ -100,3 +100,13 @@ def get_all_note_names():
     rows = conn.execute("SELECT name FROM notes ORDER BY name").fetchall()
     conn.close()
     return [r["name"] for r in rows]
+
+
+def get_backlinks(name):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT source_note FROM links WHERE target_note = ? ORDER BY source_note",
+        (name,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
