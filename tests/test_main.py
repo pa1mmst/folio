@@ -96,3 +96,82 @@ class TestBacklinks:
         assert r.status_code == 200
         assert "backlinks-panel" in r.text
         assert "No backlinks" in r.text
+
+
+class TestEditor:
+    def test_editor_page_renders(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "editor-layout" in r.text
+        assert "toolbar" in r.text
+        assert "preview-pane" in r.text
+        assert "editor" in r.text
+        assert 'id="preview"' in r.text
+        assert 'id="editor"' in r.text
+
+    def test_editor_has_toolbar_buttons(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert 'data-cmd="bold"' in r.text
+        assert 'data-cmd="italic"' in r.text
+        assert 'data-cmd="h1"' in r.text
+        assert 'data-cmd="h2"' in r.text
+        assert 'data-cmd="h3"' in r.text
+        assert 'data-cmd="link"' in r.text
+        assert 'data-cmd="code"' in r.text
+        assert 'data-cmd="list"' in r.text
+        assert 'data-cmd="quote"' in r.text
+
+    def test_editor_has_debounce(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "debounceTimer" in r.text
+        assert "setTimeout(updatePreview, 300)" in r.text
+
+    def test_editor_has_save_function(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "saveNote" in r.text
+        assert "/api/note" in r.text
+
+    def test_editor_has_keyboard_shortcuts(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "Ctrl+B" in r.text or "metaKey" in r.text
+        assert "b:'bold'" in r.text or "i:'italic'" in r.text or "Ctrl+I" in r.text
+
+    def test_editor_new_note_has_default_content(self, client):
+        r = client.get("/edit/new")
+        assert r.status_code == 200
+        assert "Start writing" in r.text
+
+    def test_editor_existing_note_has_content(self, client):
+        client.post("/api/note", json={"name": "test-editor-content", "content": "# Existing\n\nNote body"})
+        r = client.get("/edit/test-editor-content")
+        assert r.status_code == 200
+        assert "Existing" in r.text
+        assert "Note body" in r.text
+
+    def test_markdown_to_html_via_api(self, client):
+        r = client.post("/api/note", json={"name": "md-test", "content": "# Heading\n\n**Bold** and *italic*\n\n- Item 1\n- Item 2\n\n> A quote\n\n`code` here\n\n[[wiki-link]]\n\n#tag"})
+        assert r.status_code == 200
+        r2 = client.get("/note/md-test")
+        assert r2.status_code == 200
+        assert "Heading" in r2.text
+        assert "wiki-link" in r2.text
+
+    def test_editor_has_cancel_link(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "Cancel" in r.text
+        assert "/note/test-editor" in r.text or "href=" in r.text
+
+    def test_editor_links_static_css(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "style.css" in r.text or "/static/" in r.text
+
+    def test_static_css_served(self, client):
+        r = client.get("/static/style.css")
+        assert r.status_code == 200
+        assert "toolbar" in r.text
