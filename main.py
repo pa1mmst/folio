@@ -134,90 +134,82 @@ def inline(text):
 
 # ── HTML template ─────────────────────────────────────────────
 BASE_STYLE = """
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
-a { color: #7c83fd; text-decoration: none; }
-a:hover { text-decoration: underline; }
-.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-.header { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid #333; margin-bottom: 24px; }
-.header h1 { font-size: 1.4rem; }
-.header h1 a { color: #e0e0e0; }
-.nav a { margin-left: 16px; color: #7c83fd; }
-.search-bar { display: flex; gap: 12px; margin-bottom: 24px; }
-.search-bar input { flex: 1; padding: 10px 16px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-size: 1rem; }
-.search-bar select { padding: 10px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; }
-.btn { padding: 10px 20px; border: none; border-radius: 8px; background: #7c83fd; color: #fff; cursor: pointer; font-size: 0.9rem; }
-.btn:hover { background: #6a73e0; }
-.btn-danger { background: #e74c3c; }
-.btn-danger:hover { background: #c0392b; }
-.note-list { display: grid; gap: 12px; }
-.note-card { padding: 16px; background: #16213e; border-radius: 8px; border: 1px solid #333; }
-.note-card h3 { margin-bottom: 8px; }
-.note-card h3 a { color: #e0e0e0; }
-.note-card .meta { font-size: 0.8rem; color: #888; }
-.note-card .tags { margin-top: 8px; }
-.tag { display: inline-block; padding: 2px 8px; background: #2a2a4a; border-radius: 4px; font-size: 0.8rem; color: #7c83fd; margin-right: 4px; }
-.tag:hover { background: #3a3a5a; }
-.editor-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 160px); }
-.editor-pane textarea { width: 100%; height: 100%; padding: 16px; border: 1px solid #333; border-radius: 8px; background: #16213e; color: #e0e0e0; font-family: 'Fira Code', monospace; font-size: 0.95rem; resize: none; line-height: 1.6; }
-.preview-pane { padding: 16px; background: #16213e; border-radius: 8px; border: 1px solid #333; overflow-y: auto; }
-.preview-pane h1, .preview-pane h2, .preview-pane h3 { margin: 16px 0 8px; }
-.preview-pane p { margin: 8px 0; line-height: 1.6; }
-.preview-pane ul { margin: 8px 0; padding-left: 24px; }
-.preview-pane code { background: #2a2a4a; padding: 2px 6px; border-radius: 4px; font-size: 0.9rem; }
-.preview-pane pre { background: #2a2a4a; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
-.preview-pane img { max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0; }
-.preview-pane .wikilink { color: #7c83fd; font-weight: 500; }
-.editor-actions { display: flex; gap: 12px; margin-top: 12px; }
-.note-view { max-width: 800px; }
-.note-view .content { margin-top: 24px; }
-.note-view .content h1, .note-view .content h2, .note-view .content h3 { margin: 20px 0 10px; }
-.note-view .content p { margin: 10px 0; line-height: 1.7; }
-.note-view .content ul { margin: 10px 0; padding-left: 24px; }
-.note-view .content code { background: #2a2a4a; padding: 2px 6px; border-radius: 4px; }
-.note-view .content pre { background: #2a2a4a; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
-.note-view .content .wikilink { color: #7c83fd; font-weight: 500; }
-.back-link { display: inline-block; margin-bottom: 16px; color: #888; }
-.graph-container { width: 100%; height: calc(100vh - 160px); background: #16213e; border-radius: 8px; border: 1px solid #333; }
-.empty { text-align: center; padding: 60px; color: #666; }
-.backlinks-panel { margin-top: 32px; padding: 16px; background: #16213e; border-radius: 8px; border: 1px solid #333; }
-.backlinks-panel h3 { font-size: 0.95rem; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-.backlinks-panel .backlink-item { display: block; padding: 8px 12px; margin-bottom: 4px; border-radius: 4px; color: #7c83fd; font-size: 0.9rem; }
-.backlinks-panel .backlink-item:hover { background: #2a2a4a; text-decoration: none; }
-.backlinks-panel .backlink-empty { color: #666; font-size: 0.85rem; font-style: italic; }
-.dropdown { position: relative; display: inline-block; }
-.dropdown-menu { display: none; position: absolute; top: 100%; left: 0; background: #16213e; border: 1px solid #333; border-radius: 8px; margin-top: 4px; min-width: 160px; z-index: 100; overflow: hidden; }
-.dropdown-menu.show { display: block; }
-.dropdown-item { display: block; padding: 10px 16px; color: #e0e0e0; text-decoration: none; font-size: 0.9rem; }
-.dropdown-item:hover { background: #2a2a4a; text-decoration: none; }
+:root {
+  --bg-page: #08090a;
+  --bg-panel: #0f1011;
+  --bg-elevated: #191a1b;
+  --bg-hover: #28282c;
+  --text-primary: #f7f8f8;
+  --text-secondary: #d0d6e0;
+  --text-muted: #8a8f98;
+  --accent: #5e6ad2;
+  --accent-violet: #7170ff;
+  --border-subtle: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.08);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-full: 9999px;
+  --space: 8px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg-page);
+  color:var(--text-primary);
+  font-size:15px;font-weight:400;line-height:1.6;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  min-height:100vh;
+}
+a { color:var(--accent);text-decoration:none;transition:color .15s; }
+a:hover { color:var(--accent-violet); }
+.app-layout { display:flex;max-width:1200px;margin:0 auto;min-height:100vh; }
 """
 
 
-def render_page(title, body):
+def sidebar_html(active="notes", tags=None):
+    nav_items = {"notes": {"label": "Notes", "href": "/"}, "graph": {"label": "Graph", "href": "/graph"}}
+    nav_links = "".join(
+        f'<a href="{v["href"]}" class="sidebar-link{" active" if k == active else ""}">{v["label"]}</a>'
+        for k, v in nav_items.items()
+    )
+    tag_links = ""
+    if tags:
+        for t in tags:
+            tag_links += f'<a href="/?tag={t["tag"]}" class="sidebar-tag">#{t["tag"]}</a>'
+    return f"""<aside class="sidebar">
+  <div class="sidebar-brand"><a href="/" class="sidebar-logo">folio</a></div>
+  <nav class="sidebar-nav">{nav_links}</nav>
+  <div class="sidebar-section">
+    <div class="sidebar-section-title">Tags</div>
+    <div class="sidebar-tags">{tag_links}</div>
+  </div>
+</aside>"""
+
+
+def render_page(title, body, active="notes"):
+    tags = get_all_tags()
+    sb = sidebar_html(active, tags)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} — vault-lite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>{BASE_STYLE}</style>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="container">
-        {body}
+    <div class="app-layout">
+        {sb}
+        <main class="main-content">
+            {body}
+        </main>
     </div>
 </body>
 </html>"""
-
-
-def header(active="notes"):
-    items = {
-        "notes": '<a href="/">📄 Notes</a>',
-        "graph": '<a href="/graph">🕸 Graph</a>',
-    }
-    nav = "".join(v for k, v in items.items() if k != active)
-    return f'<div class="header"><h1><a href="/">🗄 vault-lite</a></h1><div class="nav">{nav}</div></div>'
 
 
 # ── Export helpers ─────────────────────────────────────────────
@@ -302,14 +294,16 @@ async def home(request: Request, q: str = "", tag: str = ""):
         note_cards = '<div class="empty"><p>No notes yet. Create your first one!</p></div>'
 
     body = f"""
-    {header("notes")}
+    <div class="page-header">
+        <h1 class="page-title">Notes</h1>
+        <a href="/edit/new" class="btn btn-primary">New Note</a>
+    </div>
     <div class="search-bar">
         <input type="text" name="q" placeholder="Search notes..." value="{q}" id="searchInput"
                onkeydown="if(event.key==='Enter')window.location='/?q='+encodeURIComponent(this.value)+'{tag_filter}'">
         <select onchange="window.location='/?tag='+encodeURIComponent(this.value)+'&q={q}'">
             {tag_options}
         </select>
-        <a href="/edit/new" class="btn">+ New Note</a>
     </div>
     <div class="note-list">{note_cards}</div>
     """
@@ -320,7 +314,7 @@ async def home(request: Request, q: str = "", tag: str = ""):
 async def view_note(name: str):
     note = read_note(name)
     if not note:
-        return render_page("Not found", f'{header("notes")}<div class="empty"><p>Note not found.</p><a href="/">← Back</a></div>')
+        return render_page("Not found", '<div class="empty"><p>Note not found.</p><a href="/" class="back-link">Back to notes</a></div>')
 
     content = strip_frontmatter(note["content"])
     html_content = md_to_html(content)
@@ -330,7 +324,7 @@ async def view_note(name: str):
     backlinks = get_backlinks(name)
     if backlinks:
         backlinks_items = "".join(
-            f'<a href="/note/{bl["source_note"]}" class="backlink-item">→ {bl["source_note"]}</a>'
+            f'<a href="/note/{bl["source_note"]}" class="backlink-item">{bl["source_note"]}</a>'
             for bl in backlinks
         )
         backlinks_html = f'<div class="backlinks-panel"><h3>Backlinks</h3>{backlinks_items}</div>'
@@ -338,22 +332,21 @@ async def view_note(name: str):
         backlinks_html = '<div class="backlinks-panel"><h3>Backlinks</h3><div class="backlink-empty">No backlinks</div></div>'
 
     body = f"""
-    {header("notes")}
     <div class="note-view">
-        <a href="/" class="back-link">← Back to notes</a>
+        <a href="/" class="back-link">Back to notes</a>
         <h2>{name}</h2>
         <div class="tags">{tags_html}</div>
         <div class="content">{html_content}</div>
-        <div style="margin-top:24px; display:flex; gap:12px; align-items:center;">
-            <a href="/edit/{name}" class="btn">✏️ Edit</a>
+        <div class="note-view-actions">
+            <a href="/edit/{name}" class="btn">Edit</a>
             <div class="dropdown">
-                <button class="btn" style="background:#555;" onclick="toggleExport(event)">📥 Export ▾</button>
+                <button class="btn" onclick="toggleExport(event)">Export</button>
                 <div class="dropdown-menu" id="exportMenu">
-                    <a href="/api/export-pdf/{name}" class="dropdown-item" target="_blank">📕 Export PDF</a>
-                    <a href="/api/export-html/{name}" class="dropdown-item" target="_blank">🌐 Export HTML</a>
+                    <a href="/api/export-pdf/{name}" class="dropdown-item" target="_blank">Export PDF</a>
+                    <a href="/api/export-html/{name}" class="dropdown-item" target="_blank">Export HTML</a>
                 </div>
             </div>
-            <button class="btn btn-danger" onclick="if(confirm('Delete?'))fetch('/api/note/{name}',{{method:'DELETE'}}).then(()=>window.location='/')">🗑 Delete</button>
+            <button class="btn btn-danger" onclick="if(confirm('Delete?'))fetch('/api/note/{name}',{{method:'DELETE'}}).then(()=>window.location='/')">Delete</button>
         </div>
     <script>
     function toggleExport(e) {{
@@ -378,8 +371,7 @@ async def edit_note(name: str):
     is_new = " (new)" if not note else ""
 
     body = f"""
-    {header("notes")}
-    <h2>Edit: {name}{is_new}</h2>
+    <div class="editor-title">Edit: {name}{is_new}</div>
     <div class="editor-layout">
         <div class="editor-pane">
             <div class="toolbar" id="toolbar">
@@ -390,19 +382,19 @@ async def edit_note(name: str):
                 <button type="button" data-cmd="h2" title="Heading 2">H2</button>
                 <button type="button" data-cmd="h3" title="Heading 3">H3</button>
                 <span class="separator"></span>
-                <button type="button" data-cmd="link" title="Link">🔗</button>
-                <button type="button" data-cmd="image" title="Image">🖼</button>
+                <button type="button" data-cmd="link" title="Link">Link</button>
+                <button type="button" data-cmd="image" title="Image">Img</button>
                 <button type="button" data-cmd="code" title="Code">&lt;/&gt;</button>
-                <button type="button" data-cmd="list" title="List">•</button>
-                <button type="button" data-cmd="quote" title="Quote">❝</button>
+                <button type="button" data-cmd="list" title="List">List</button>
+                <button type="button" data-cmd="quote" title="Quote">Quote</button>
             </div>
             <textarea id="editor">{content}</textarea>
         </div>
         <div class="preview-pane" id="preview"></div>
     </div>
     <div class="editor-actions">
-        <button class="btn" onclick="saveNote()">💾 Save</button>
-        <a href="/note/{name}" class="btn" style="background:#555;">Cancel</a>
+        <button class="btn btn-primary" onclick="saveNote()">Save</button>
+        <a href="/note/{name}" class="btn">Cancel</a>
     </div>
     <script>
     const editor = document.getElementById('editor');
@@ -666,7 +658,9 @@ async def edit_note(name: str):
 @app.get("/graph", response_class=HTMLResponse)
 async def graph_page():
     body = f"""
-    {header("graph")}
+    <div class="page-header">
+        <h1 class="page-title">Graph</h1>
+    </div>
     <div class="graph-container" id="graph"></div>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
@@ -683,17 +677,18 @@ async def graph_page():
                 .force('center', d3.forceCenter(width / 2, height / 2));
             const link = svg.append('g').selectAll('line')
                 .data(data.links).enter().append('line')
-                .attr('stroke', '#444').attr('stroke-width', 1.5);
+                .attr('stroke', 'var(--border)').attr('stroke-width', 1.5);
             const node = svg.append('g').selectAll('g')
                 .data(data.nodes).enter().append('g')
                 .call(d3.drag()
                     .on('start', (e, d) => {{ if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }})
                     .on('drag', (e, d) => {{ d.fx = e.x; d.fy = e.y; }})
                     .on('end', (e, d) => {{ if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }}));
-            node.append('circle').attr('r', 8).attr('fill', '#7c83fd');
+            node.append('circle').attr('r', 6).attr('fill', 'var(--accent)');
             node.append('text').text(d => d.id)
                 .attr('x', 12).attr('y', 4)
-                .attr('fill', '#e0e0e0').attr('font-size', '12px');
+                .attr('fill', 'var(--text-secondary)').attr('font-size', '12px')
+                .attr('font-family', "'Inter', system-ui, sans-serif");
             node.on('click', (e, d) => {{ window.location = '/note/' + d.id; }});
             simulation.on('tick', () => {{
                 link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
@@ -703,7 +698,7 @@ async def graph_page():
         }});
     </script>
     """
-    return render_page("Graph", body)
+    return render_page("Graph", body, active="graph")
 
 
 # ── API ───────────────────────────────────────────────────────
