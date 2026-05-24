@@ -26,6 +26,7 @@ app = FastAPI(title="vault-lite", lifespan=lifespan)
 # ── Static files ──────────────────────────────────────────────
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # ── Markdown → HTML (minimal, no deps) ───────────────────────
@@ -185,6 +186,7 @@ def render_page(title, body):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} — vault-lite</title>
     <style>{BASE_STYLE}</style>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
@@ -306,6 +308,19 @@ async def edit_note(name: str):
     <h2>Edit: {name}{is_new}</h2>
     <div class="editor-layout">
         <div class="editor-pane">
+            <div class="toolbar" id="toolbar">
+                <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+                <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+                <span class="separator"></span>
+                <button type="button" data-cmd="h1" title="Heading 1">H1</button>
+                <button type="button" data-cmd="h2" title="Heading 2">H2</button>
+                <button type="button" data-cmd="h3" title="Heading 3">H3</button>
+                <span class="separator"></span>
+                <button type="button" data-cmd="link" title="Link">🔗</button>
+                <button type="button" data-cmd="code" title="Code">&lt;/&gt;</button>
+                <button type="button" data-cmd="list" title="List">•</button>
+                <button type="button" data-cmd="quote" title="Quote">❝</button>
+            </div>
             <textarea id="editor">{content}</textarea>
         </div>
         <div class="preview-pane" id="preview"></div>
@@ -317,10 +332,130 @@ async def edit_note(name: str):
     <script>
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
+
+    function getLineStart(text, pos) {{
+        return text.lastIndexOf('\\n', pos - 1) + 1;
+    }}
+
+    function insertMarkdown(cmd) {{
+        const ta = editor;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const text = ta.value;
+        const sel = text.substring(start, end);
+        const lineStart = getLineStart(text, start);
+        const lineEnd = text.indexOf('\\n', start);
+        const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
+        const lineSelStart = start - lineStart;
+        const lineSelEnd = end - lineStart;
+
+        switch (cmd) {{
+            case 'bold': {{
+                const wrap = sel || 'bold text';
+                insert(ta, `**${{wrap}}**`, 2);
+                break;
+            }}
+            case 'italic': {{
+                const wrap = sel || 'italic text';
+                insert(ta, `*${{wrap}}*`, 1);
+                break;
+            }}
+            case 'h1':
+            case 'h2':
+            case 'h3': {{
+                const prefix = {{h1:'# ', h2:'## ', h3:'### '}}[cmd];
+                if (line.startsWith(prefix)) {{
+                    insertAtLine(ta, lineStart, line, line.slice(prefix.length), 0);
+                }} else {{
+                    const newLine = prefix + line;
+                    insertAtLine(ta, lineStart, line, newLine, prefix.length + lineSelStart);
+                }}
+                break;
+            }}
+            case 'link': {{
+                const wrap = sel || 'text';
+                insert(ta, `[${{wrap}}](url)`, 1);
+                break;
+            }}
+            case 'code': {{
+                const wrap = sel || 'code';
+                insert(ta, `\\`${{wrap}}\\``, 1);
+                break;
+            }}
+            case 'list': {{
+                const prefix = '- ';
+                if (line.startsWith(prefix)) {{
+                    insertAtLine(ta, lineStart, line, line.slice(2), 0);
+                }} else {{
+                    const newLine = prefix + line;
+                    insertAtLine(ta, lineStart, line, newLine, 2 + lineSelStart);
+                }}
+                break;
+            }}
+            case 'quote': {{
+                const prefix = '> ';
+                if (line.startsWith(prefix)) {{
+                    insertAtLine(ta, lineStart, line, line.slice(2), 0);
+                }} else {{
+                    const newLine = prefix + line;
+                    insertAtLine(ta, lineStart, line, newLine, 2 + lineSelStart);
+                }}
+                break;
+            }}
+        }}
+        ta.focus();
+        schedulePreview();
+    }}
+
+    function insert(ta, str, cursorOffset) {{
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const before = ta.value.substring(0, start);
+        const after = ta.value.substring(end);
+        ta.value = before + str + after;
+        const pos = start + (end > start ? str.length - (end - start) : cursorOffset);
+        ta.setSelectionRange(pos, pos);
+        ta.dispatchEvent(new Event('input'));
+    }}
+
+    function insertAtLine(ta, lineStart, oldLine, newLine, cursorPos) {{
+        const before = ta.value.substring(0, lineStart);
+        const after = ta.value.substring(lineStart + oldLine.length);
+        ta.value = before + newLine + after;
+        ta.setSelectionRange(cursorPos, cursorPos);
+        ta.dispatchEvent(new Event('input'));
+    }}
+
+    document.getElementById('toolbar').addEventListener('click', function(e) {{
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        e.preventDefault();
+        insertMarkdown(btn.dataset.cmd);
+    }});
+
+    // Keyboard shortcuts
+    editor.addEventListener('keydown', function(e) {{
+        const mod = e.ctrlKey || e.metaKey;
+        if (!mod) return;
+        const map = {{b:'bold', i:'italic'}};
+        const cmd = map[e.key];
+        if (cmd) {{
+            e.preventDefault();
+            insertMarkdown(cmd);
+        }}
+    }});
+
     function updatePreview() {{
         preview.innerHTML = markdownToHtml(editor.value);
     }}
-    editor.addEventListener('input', updatePreview);
+
+    let debounceTimer;
+    function schedulePreview() {{
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(updatePreview, 300);
+    }}
+
+    editor.addEventListener('input', schedulePreview);
     updatePreview();
 
     function markdownToHtml(text) {{
@@ -328,15 +463,31 @@ async def edit_note(name: str):
         let html = [];
         let inCode = false;
         let inList = false;
+
         for (let line of lines) {{
             let s = line.trim();
+
             if (s.startsWith('```')) {{
                 if (inCode) {{ html.push('</code></pre>'); inCode = false; }}
                 else {{ html.push('<pre><code>'); inCode = true; }}
                 continue;
             }}
-            if (inCode) {{ html.push(line.replace(/&/g,'&amp;').replace(/</g,'&lt;')); continue; }}
-            if (!s.startsWith('- ') && !s.startsWith('* ') && inList) {{ html.push('</ul>'); inList = false; }}
+            if (inCode) {{
+                html.push(line.replace(/&/g,'&amp;').replace(/</g,'&lt;'));
+                continue;
+            }}
+
+            // Blockquote
+            if (s.startsWith('> ')) {{
+                html.push('<blockquote>'+inline(s.slice(2))+'</blockquote>');
+                continue;
+            }}
+
+            if (!s.startsWith('- ') && !s.startsWith('* ') && inList) {{
+                html.push('</ul>');
+                inList = false;
+            }}
+
             if (s.startsWith('### ')) {{ html.push('<h3>'+inline(s.slice(4))+'</h3>'); }}
             else if (s.startsWith('## ')) {{ html.push('<h2>'+inline(s.slice(3))+'</h2>'); }}
             else if (s.startsWith('# ')) {{ html.push('<h1>'+inline(s.slice(2))+'</h1>'); }}
@@ -353,17 +504,11 @@ async def edit_note(name: str):
     }}
 
     function inline(text) {{
-        // Code
         text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-        // Bold
         text = text.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
-        // Italic
         text = text.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
-        // Wiki-links
         text = text.replace(/\\[\\[([^\\]]+)\\]\\]/g, '<a href="/note/$1" class="wikilink">$1</a>');
-        // Links
         text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
-        // Tags
         text = text.replace(/(?<!\\w)#([a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ0-9_\\-/]*)/g, '<a href="/?tag=$1" class="tag">#$1</a>');
         return text;
     }}

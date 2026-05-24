@@ -1,0 +1,173 @@
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #1e2a4a;
+  border: 1px solid #333;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #c0c0e0;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.toolbar button:hover {
+  background: #2a3a5a;
+  border-color: #444;
+  color: #fff;
+}
+
+.toolbar button:active {
+  background: #3a4a6a;
+}
+
+.toolbar .separator {
+  width: 1px;
+  background: #333;
+  margin: 4px 6px;
+}
+
+.editor-pane textarea {
+  border-radius: 0 0 0 8px;
+  border-top: none;
+  height: calc(100% - 48px);
+}
+
+.preview-pane {
+  border-radius: 0 0 8px 0;
+  border-top: none;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  height: calc(100vh - 200px);
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #333;
+}
+
+.editor-pane textarea {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  background: #16213e;
+  color: #e0e0e0;
+  font-family: 'Fira Code', monospace;
+  font-size: 0.95rem;
+  resize: none;
+  line-height: 1.6;
+}
+
+.editor-pane textarea:focus {
+  outline: none;
+  background: #1a2545;
+}
+
+.preview-pane {
+  padding: 16px;
+  background: #16213e;
+  overflow-y: auto;
+}
+
+.preview-pane h1,
+.preview-pane h2,
+.preview-pane h3 {
+  margin: 16px 0 8px;
+}
+
+.preview-pane p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.preview-pane ul {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.preview-pane blockquote {
+  margin: 8px 0;
+  padding: 8px 16px;
+  border-left: 3px solid #7c83fd;
+  background: #1e2a4a;
+  border-radius: 0 4px 4px 0;
+  color: #b0b0d0;
+}
+
+.preview-pane code {
+  background: #2a2a4a;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.preview-pane pre {
+  background: #2a2a4a;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+.preview-pane pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.preview-pane .wikilink {
+  color: #7c83fd;
+  font-weight: 500;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .editor-pane {
+    border-right: none;
+    border-bottom: 1px solid #333;
+  }
+  .editor-pane textarea {
+    height: 300px;
+  }
+  .preview-pane {
+    height: 300px;
+  }
+}
