@@ -7,9 +7,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
-from database import init_db, index_note, remove_note, search_notes, get_all_tags, get_all_links, get_all_note_names, get_backlinks
+from database import (
+    init_db, migrate_db, index_note, remove_note, search_notes,
+    get_all_tags, get_all_links, get_all_note_names, get_backlinks,
+    get_notes_by_folder, get_all_folders_with_counts,
+)
 from vault import (
-    read_note, write_note, delete_note, list_notes,
+    read_note, write_note, delete_note, list_notes, get_folder,
     parse_tags, parse_wikilinks, strip_frontmatter, note_exists,
 )
 
@@ -22,10 +26,11 @@ except ImportError:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    migrate_db()
     for note in list_notes():
         tags = parse_tags(note["content"])
         links = parse_wikilinks(note["content"])
-        index_note(note["name"], note["content"], note["created_at"], note["updated_at"], tags, links)
+        index_note(note["name"], note["content"], note["created_at"], note["updated_at"], tags, links, folder=note["folder"])
     yield
 
 app = FastAPI(title="folio", lifespan=lifespan)
@@ -193,7 +198,33 @@ a:hover { color: var(--accent-hover); }
 """
 
 
-def sidebar_html(active="notes", tags=None):
+def _folder_tree_html(folders, current_folder=""):
+    """Build nested folder tree HTML from flat folder list."""
+    tree = {}
+    for folder in folders:
+        parts = folder.split("/")
+        current = tree
+        path = ""
+        for part in parts:
+            path = f"{path}/{part}" if path else part
+            if part not in current:
+                current[part] = {"path": path, "children": {}}
+            current = current[part]["children"]
+
+    def _render(node, depth=0):
+        html = ""
+        for name, data in sorted(node.items()):
+            style = f"padding-left:{16 + depth * 14}px;"
+            active = ' folder-link-active' if data["path"] == current_folder else ''
+            html += f'<a href="/?folder={data["path"]}" class="sidebar-folder-link{active}" style="{style}">{name}</a>'
+            if data["children"]:
+                html += _render(data["children"], depth + 1)
+        return html
+
+    return _render(tree)
+
+
+def sidebar_html(active="notes", tags=None, folders=None, current_folder=""):
     nav_items = {"notes": {"label": "Notes", "href": "/", "icon": "file-text"}, "graph": {"label": "Graph", "href": "/graph", "icon": "graph"}}
     notes_svg = '<path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
     graph_svg = '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -208,12 +239,24 @@ def sidebar_html(active="notes", tags=None):
     if tags:
         for t in tags:
             tag_links += f'<a href="/?tag={t["tag"]}" class="sidebar-tag">#{t["tag"]}</a>'
+
+    folder_links = _folder_tree_html(folders or [], current_folder) if folders else ""
+
     return f"""<aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-brand"><a href="/">folio</a></div>
     <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close sidebar">&times;</button>
   </div>
   <nav class="sidebar-nav">{nav_links}</nav>
+  <div class="sidebar-section">
+    <button class="sidebar-collapse-btn" onclick="toggleFolderSection()" id="folderToggle">
+      <svg class="chevron" id="folderChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Folders
+    </button>
+    <div class="sidebar-folders" id="folderSection">{folder_links}</div>
+  </div>
   <div class="sidebar-section">
     <button class="sidebar-collapse-btn" onclick="toggleTagSection()" id="tagToggle">
       <svg class="chevron" id="tagChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -226,9 +269,11 @@ def sidebar_html(active="notes", tags=None):
 </aside>"""
 
 
-def render_page(title, body, active="notes"):
+def render_page(title, body, active="notes", current_folder=""):
     tags = get_all_tags()
-    sb = sidebar_html(active, tags)
+    folders = get_all_folders_with_counts()
+    folder_names = sorted(set(f["folder"] for f in folders))
+    sb = sidebar_html(active, tags, folder_names, current_folder)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -278,6 +323,12 @@ def render_page(title, body, active="notes"):
     function toggleSidebar() {{
         document.getElementById('sidebar').classList.toggle('open');
         document.getElementById('sidebarOverlay').classList.toggle('open');
+    }}
+    function toggleFolderSection() {{
+        var section = document.getElementById('folderSection');
+        var chevron = document.getElementById('folderChevron');
+        section.classList.toggle('collapsed');
+        chevron.classList.toggle('rotated');
     }}
     function toggleTagSection() {{
         var section = document.getElementById('tagSection');
@@ -377,16 +428,19 @@ def render_export_html(name, html_content, tags):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, q: str = "", tag: str = ""):
+async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
     all_tags = get_all_tags()
     tag_filter = f'&tag={tag}' if tag else ""
+    folder_filter = f'&folder={folder}' if folder else ""
 
     if q or tag:
-        notes = search_notes(q, tag=tag if tag else None)
+        notes = search_notes(q, tag=tag if tag else None, folder=folder if folder else None)
+    elif folder:
+        notes = get_notes_by_folder(folder)
     else:
         notes = []
         for n in list_notes():
-            notes.append({"name": n["name"], "updated_at": n["updated_at"]})
+            notes.append({"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]})
 
     # Build tag options
     tag_options = '<option value="">All tags</option>'
@@ -401,16 +455,19 @@ async def home(request: Request, q: str = "", tag: str = ""):
         tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags[:5])
         updated = n.get("updated_at", "")[:10]
         content_preview = ""
+        note_folder = n.get("folder", "")
         if note_data:
             raw_lines = [l.strip() for l in note_data["content"].split("\n") if l.strip()]
             for line in raw_lines:
                 if not line.startswith("---") and not line.startswith("# "):
                     content_preview = line[:140]
                     break
+        folder_badge = f'<span class="note-folder-badge">{note_folder}</span>' if note_folder else ""
         note_cards += f"""
         <div class="note-card">
             <div class="note-card-header">
-                <h3 class="note-card-title"><a href="/note/{n['name']}">{n['name']}</a></h3>
+                {folder_badge}
+                <h3 class="note-card-title"><a href="/note/{n['name']}">{n['name'].split('/')[-1]}</a></h3>
             </div>
             {'<div class="note-card-preview">' + content_preview + '</div>' if content_preview else '<div class="note-card-preview" style="color:var(--text-muted);font-style:italic;">Empty note</div>'}
             <div class="note-card-footer">
@@ -421,7 +478,7 @@ async def home(request: Request, q: str = "", tag: str = ""):
 
     if not note_cards:
         skeleton = ""
-        if not q and not tag:
+        if not q and not tag and not folder:
             skeleton = """
             <div class="skeleton-note"><div class="skeleton-line w-55"></div><div class="skeleton-line w-85"></div><div class="skeleton-line w-40"></div></div>
             <div class="skeleton-note"><div class="skeleton-line w-45"></div><div class="skeleton-line w-75"></div><div class="skeleton-line w-35"></div></div>
@@ -430,11 +487,13 @@ async def home(request: Request, q: str = "", tag: str = ""):
             <div class="skeleton-note"><div class="skeleton-line w-65"></div><div class="skeleton-line w-60"></div><div class="skeleton-line w-50"></div></div>
             <div class="skeleton-note"><div class="skeleton-line w-40"></div><div class="skeleton-line w-90"></div><div class="skeleton-line w-25"></div></div>
             """
-        note_cards = '<div class="empty"><p>No notes yet. Create your first one!</p></div>' + skeleton
+        msg = "No notes here yet." if folder else "No notes yet. Create your first one!"
+        note_cards = f'<div class="empty"><p>{msg}</p></div>' + skeleton
 
+    folder_title = f" / {folder}" if folder else ""
     body = f"""
     <div class="page-header">
-        <h1 class="page-title">Notes</h1>
+        <h1 class="page-title">Notes{folder_title}</h1>
         <a href="/edit/new" class="btn btn-primary">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -444,17 +503,17 @@ async def home(request: Request, q: str = "", tag: str = ""):
     </div>
     <div class="search-bar">
         <input type="text" name="q" placeholder="Search notes..." value="{q}" id="searchInput"
-               onkeydown="if(event.key==='Enter')window.location='/?q='+encodeURIComponent(this.value)+'{tag_filter}'">
-        <select onchange="window.location='/?tag='+encodeURIComponent(this.value)+'&q={q}'">
+               onkeydown="if(event.key==='Enter')window.location='/?q='+encodeURIComponent(this.value)+'{tag_filter}{folder_filter}'">
+        <select onchange="window.location='/?tag='+encodeURIComponent(this.value)+'&q={q}{folder_filter}'">
             {tag_options}
         </select>
     </div>
     <div class="note-list">{note_cards}</div>
     """
-    return render_page("Notes", body)
+    return render_page("Notes", body, current_folder=folder)
 
 
-@app.get("/note/{name}", response_class=HTMLResponse)
+@app.get("/note/{name:path}", response_class=HTMLResponse)
 async def view_note(name: str):
     note = read_note(name)
     if not note:
@@ -475,10 +534,24 @@ async def view_note(name: str):
     else:
         backlinks_html = '<div class="backlinks-panel"><h3>Backlinks</h3><div class="backlink-empty">No backlinks</div></div>'
 
+    note_folder = note.get("folder", "")
+    folder_breadcrumb = ""
+    if note_folder:
+        parts = note_folder.split("/")
+        crumbs = ""
+        path = ""
+        for p in parts:
+            path = f"{path}/{p}" if path else p
+            crumbs += f'<a href="/?folder={path}" class="folder-crumb">{p}</a>'
+            if p != parts[-1]:
+                crumbs += '<span class="folder-crumb-sep">/</span>'
+        folder_breadcrumb = f'<div class="folder-breadcrumb">{crumbs}</div>'
+
     body = f"""
     <div class="note-view">
         <a href="/" class="back-link">Back to notes</a>
-        <h2>{name}</h2>
+        {folder_breadcrumb}
+        <h2>{name.split('/')[-1]}</h2>
         <div class="tags">{tags_html}</div>
         <div class="note-view-content">{html_content}</div>
         <div class="note-footer">
@@ -512,10 +585,10 @@ async def view_note(name: str):
         {backlinks_html}
     </div>
     """
-    return render_page(name, body)
+    return render_page(name, body, current_folder=note_folder)
 
 
-@app.get("/edit/{name}", response_class=HTMLResponse)
+@app.get("/edit/{name:path}", response_class=HTMLResponse)
 async def edit_note(name: str):
     note = read_note(name)
     content = note["content"] if note else f"# {name}\n\nStart writing...\n"
@@ -1105,9 +1178,15 @@ async def graph_page():
 
 # ── API ───────────────────────────────────────────────────────
 
+@app.get("/api/folders")
+def api_folders():
+    folders = get_all_folders_with_counts()
+    return JSONResponse(folders)
+
+
 @app.get("/api/search")
-def api_search(q: str = "", tag: str = ""):
-    return JSONResponse(search_notes(q, tag=tag or None))
+def api_search(q: str = "", tag: str = "", folder: str = ""):
+    return JSONResponse(search_notes(q, tag=tag or None, folder=folder or None))
 
 
 @app.get("/api/graph")
@@ -1124,7 +1203,7 @@ def api_graph():
     return JSONResponse({"nodes": nodes, "links": link_data})
 
 
-@app.get("/api/backlinks/{name}")
+@app.get("/api/backlinks/{name:path}")
 def api_backlinks(name: str):
     return JSONResponse(get_backlinks(name))
 
@@ -1138,13 +1217,14 @@ async def api_save_note(request: Request):
         return JSONResponse({"error": "Name required"}, status_code=400)
 
     note = write_note(name, content)
+    folder = note.get("folder", "")
     tags = parse_tags(content)
     links = parse_wikilinks(content)
-    index_note(name, content, note["created_at"], note["updated_at"], tags, links)
-    return JSONResponse({"name": name, "updated_at": note["updated_at"]})
+    index_note(name, content, note["created_at"], note["updated_at"], tags, links, folder=folder)
+    return JSONResponse({"name": name, "folder": folder, "updated_at": note["updated_at"]})
 
 
-@app.delete("/api/note/{name}")
+@app.delete("/api/note/{name:path}")
 def api_delete_note(name: str):
     delete_note(name)
     remove_note(name)
@@ -1221,7 +1301,7 @@ def health():
 
 # ── Export ─────────────────────────────────────────────────
 
-@app.get("/api/export-html/{name}")
+@app.get("/api/export-html/{name:path}")
 async def export_html(name: str):
     note = read_note(name)
     if not note:
@@ -1239,7 +1319,7 @@ async def export_html(name: str):
     )
 
 
-@app.get("/api/export-pdf/{name}")
+@app.get("/api/export-pdf/{name:path}")
 async def export_pdf(name: str):
     note = read_note(name)
     if not note:

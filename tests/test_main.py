@@ -8,12 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from fastapi.testclient import TestClient
 from main import app
-from database import init_db as _init_db
+from database import init_db as _init_db, migrate_db as _migrate_db
 
 
 @pytest.fixture(autouse=True)
 def _setup_db():
     _init_db()
+    _migrate_db()
     yield
 
 
@@ -35,6 +36,7 @@ class TestNoteAPI:
         assert r.status_code == 200
         data = r.json()
         assert data["name"] == "test-api"
+        assert data["folder"] == ""
 
     def test_get_note_page(self, client):
         client.post("/api/note", json={"name": "test-view", "content": "**Bold** and #tag"})
@@ -63,6 +65,87 @@ class TestNoteAPI:
     def test_404_page(self, client):
         r = client.get("/note/nonexistent-note-abc")
         assert r.status_code == 200
+
+
+class TestFolders:
+    def test_create_note_in_folder(self, client):
+        r = client.post("/api/note", json={"name": "projects/idea", "content": "# Idea"})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["name"] == "projects/idea"
+        assert data["folder"] == "projects"
+
+    def test_view_note_in_folder(self, client):
+        client.post("/api/note", json={"name": "projects/note-a", "content": "In folder"})
+        r = client.get("/note/projects/note-a")
+        assert r.status_code == 200
+        assert "folder-breadcrumb" in r.text
+        assert "projects" in r.text
+
+    def test_folder_api(self, client):
+        client.post("/api/note", json={"name": "folder-test/n1", "content": "n1"})
+        client.post("/api/note", json={"name": "folder-test/n2", "content": "n2"})
+        r = client.get("/api/folders")
+        assert r.status_code == 200
+        data = r.json()
+        assert any(f["folder"] == "folder-test" for f in data)
+
+    def test_home_page_filters_by_folder(self, client):
+        client.post("/api/note", json={"name": "filter-me/n1", "content": "n1"})
+        client.post("/api/note", json={"name": "other/n2", "content": "n2"})
+        r = client.get("/?folder=filter-me")
+        assert r.status_code == 200
+        assert "filter-me" in r.text
+        # The sidebar should show the folder tree
+        assert "sidebar-folder-link" in r.text
+
+    def test_nested_folder(self, client):
+        client.post("/api/note", json={"name": "a/b/c/deep-note", "content": "deep"})
+        r = client.get("/note/a/b/c/deep-note")
+        assert r.status_code == 200
+        assert "folder-breadcrumb" in r.text
+        assert "a" in r.text
+        assert "c" in r.text
+
+    def test_delete_note_in_folder(self, client):
+        client.post("/api/note", json={"name": "del-folder/to-delete", "content": "bye"})
+        r = client.delete("/api/note/del-folder/to-delete")
+        assert r.status_code == 200
+
+    def test_backlinks_note_in_folder(self, client):
+        client.post("/api/note", json={"name": "fl/source", "content": "Links to [[fl/target]]"})
+        client.post("/api/note", json={"name": "fl/target", "content": "Target"})
+        r = client.get("/api/backlinks/fl/target")
+        assert r.status_code == 200
+        data = r.json()
+        assert any(d["source_note"] == "fl/source" for d in data)
+
+    def test_editor_for_folder_note(self, client):
+        client.post("/api/note", json={"name": "ed/folder-note", "content": "# Edit me"})
+        r = client.get("/edit/ed/folder-note")
+        assert r.status_code == 200
+        assert "Edit" in r.text
+
+    def test_export_note_in_folder(self, client):
+        client.post("/api/note", json={"name": "export-folder/test", "content": "# Export"})
+        r = client.get("/api/export-html/export-folder/test")
+        assert r.status_code == 200
+        assert "Export" in r.text
+
+    def test_search_with_folder_filter(self, client):
+        client.post("/api/note", json={"name": "search-folder/note-a", "content": "secret phrase"})
+        client.post("/api/note", json={"name": "other-folder/note-b", "content": "secret phrase"})
+        r = client.get("/api/search?q=secret&folder=search-folder")
+        assert r.status_code == 200
+        data = r.json()
+        names = [n["name"] for n in data]
+        assert "search-folder/note-a" in names
+        assert "other-folder/note-b" not in names
+
+    def test_folder_new_from_editor(self, client):
+        r = client.get("/edit/new")
+        assert r.status_code == 200
+        assert "editor-layout" in r.text
 
 
 class TestBacklinks:
@@ -230,7 +313,7 @@ class TestImageUpload:
         assert r2.content == b"content"
 
     def test_upload_creates_uploads_dir(self, client):
-        import os, shutil
+        import shutil
         upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
         shutil.rmtree(upload_dir, ignore_errors=True)
         r = client.post("/api/upload", files={"file": ("fresh.png", b"data", "image/png")})
@@ -258,7 +341,7 @@ class TestImageUpload:
 
 class TestAttachments:
     def test_attachments_list_empty(self, client):
-        import os, shutil
+        import shutil
         upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
         os.makedirs(upload_dir, exist_ok=True)
         for f in os.listdir(upload_dir):
