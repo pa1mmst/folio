@@ -895,11 +895,14 @@ def api_search(q: str = "", tag: str = ""):
 @app.get("/api/graph")
 def api_graph():
     links = get_all_links()
-    names = get_all_note_names()
+    names = set(get_all_note_names())
     nodes = [{"id": n} for n in names]
     link_data = []
     for l in links:
-        link_data.append({"source": l["source_note"], "target": l["target_note"]})
+        src = l["source_note"]
+        tgt = l["target_note"]
+        if src in names and tgt in names:
+            link_data.append({"source": src, "target": tgt})
     return JSONResponse({"nodes": nodes, "links": link_data})
 
 
