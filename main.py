@@ -814,115 +814,72 @@ async def edit_note(name: str):
 
 @app.get("/graph", response_class=HTMLResponse)
 async def graph_page():
-    body = f"""
+    body = """
     <div class="page-header">
         <h1 class="page-title">Graph</h1>
     </div>
-    <div class="graph-container" id="graph"></div>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <div class="graph-container" id="graph">
+      <div class="graph-loading" id="graphLoading">Loading graph…</div>
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js" onerror="document.getElementById('graphLoading').textContent='Failed to load D3.js — check internet connection'"></script>
     <script>
-    fetch('/api/graph')
-        .then(r => r.json())
-        .then(data => {{
+    (function() {
+      function renderGraph() {
+        if (typeof d3 === 'undefined') { setTimeout(renderGraph, 200); return; }
+        var loading = document.getElementById('graphLoading');
+        if (loading) loading.remove();
+        fetch('/api/graph')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
             var container = document.getElementById('graph');
-            var width = container.clientWidth;
-            var height = container.clientHeight;
-            var linkCounts = {{}};
-            data.links.forEach(function(l) {{
-                linkCounts[l.source] = (linkCounts[l.source] || 0) + 1;
-                linkCounts[l.target] = (linkCounts[l.target] || 0) + 1;
-            }});
-            var maxLinks = Math.max(1, ...Object.values(linkCounts));
-            var svg = d3.select('#graph').append('svg')
-                .attr('width', width).attr('height', height);
-            var defs = svg.append('defs');
-            data.nodes.forEach(function(d) {{
-                var id = 'glow-' + d.id.replace(/[^a-zA-Z0-9]/g, '');
-                defs.append('radialGradient').attr('id', id)
-                    .attr('cx', '50%').attr('cy', '50%').attr('r', '50%')
-                    .append('stop').attr('offset', '0%')
-                    .attr('stop-color', 'var(--accent)').attr('stop-opacity', 0.4);
-                defs.append('radialGradient').attr('id', id + '-g')
-                    .attr('cx', '50%').attr('cy', '50%').attr('r', '50%')
-                    .append('stop').attr('offset', '0%')
-                    .attr('stop-color', 'var(--accent)').attr('stop-opacity', 0.15);
-            }});
+            var width = container.clientWidth || 800;
+            var height = container.clientHeight || 600;
+            if (width < 10 || height < 10) { width = 800; height = 600; }
+            var svg = d3.select('#graph').append('svg').attr('width', width).attr('height', height);
             var g = svg.append('g');
-            var zoom = d3.zoom()
-                .scaleExtent([0.1, 4])
-                .on('zoom', function(e) {{ g.attr('transform', e.transform); }});
+            var zoom = d3.zoom().scaleExtent([0.1, 4]).on('zoom', function(e) { g.attr('transform', e.transform); });
             svg.call(zoom);
             var simulation = d3.forceSimulation(data.nodes)
-                .force('link', d3.forceLink(data.links).id(function(d) {{ return d.id; }}).distance(120))
-                .force('charge', d3.forceManyBody().strength(-250))
-                .force('center', d3.forceCenter(width / 2, height / 2))
-                .force('collision', d3.forceCollide().radius(function(d) {{
-                    return 6 + 14 * (linkCounts[d.id] || 0) / maxLinks;
-                }}));
+              .force('link', d3.forceLink(data.links).id(function(d) { return d.id; }).distance(120))
+              .force('charge', d3.forceManyBody().strength(-250))
+              .force('center', d3.forceCenter(width / 2, height / 2));
             var link = g.append('g').selectAll('line')
-                .data(data.links).enter().append('line')
-                .attr('stroke', 'var(--border)').attr('stroke-width', 1);
+              .data(data.links).enter().append('line')
+              .attr('stroke', 'var(--border)').attr('stroke-width', 1.5);
             var node = g.append('g').selectAll('g')
-                .data(data.nodes).enter().append('g')
-                .style('cursor', 'pointer')
-                .call(d3.drag()
-                    .on('start', function(e, d) {{
-                        if (!e.active) simulation.alphaTarget(0.3).restart();
-                        d.fx = d.x;
-                        d.fy = d.y;
-                    }})
-                    .on('drag', function(e, d) {{ d.fx = e.x; d.fy = e.y; }})
-                    .on('end', function(e, d) {{
-                        if (!e.active) simulation.alphaTarget(0);
-                        d.fx = null;
-                        d.fy = null;
-                    }}));
-            node.append('circle')
-                .attr('r', function(d) {{ return 6 + 14 * (linkCounts[d.id] || 0) / maxLinks; }})
-                .attr('fill', 'var(--accent)')
-                .attr('stroke', 'var(--bg-primary)')
-                .attr('stroke-width', 2)
-                .style('transition', 'filter 0.2s var(--easing)');
-            node.append('text').text(function(d) {{ return d.id; }})
-                .attr('x', function(d) {{ return 6 + 14 * (linkCounts[d.id] || 0) / maxLinks + 6; }})
-                .attr('y', 4)
-                .attr('fill', 'var(--text-secondary)').attr('font-size', '12px')
-                .attr('font-family', "'Inter', system-ui, sans-serif");
-            node.on('mouseenter', function(e, d) {{
-                var r = 6 + 14 * (linkCounts[d.id] || 0) / maxLinks;
-                d3.select(this).select('circle')
-                    .attr('fill', 'var(--accent-hover)')
-                    .attr('r', r * 1.3)
-                    .style('filter', 'brightness(1.3) drop-shadow(0 0 8px var(--accent-glow))');
-                d3.select(this).select('text')
-                    .attr('fill', 'var(--text-primary)')
-                    .attr('font-weight', '500');
-                link.attr('stroke', function(l) {{
-                    return l.source.id === d.id || l.target.id === d.id ? 'var(--accent-muted)' : 'var(--border)';
-                }}).attr('stroke-width', function(l) {{
-                    return l.source.id === d.id || l.target.id === d.id ? 2 : 1;
-                }});
-            }})
-            .on('mouseleave', function(e, d) {{
-                var r = 6 + 14 * (linkCounts[d.id] || 0) / maxLinks;
-                d3.select(this).select('circle')
-                    .attr('fill', 'var(--accent)')
-                    .attr('r', r)
-                    .style('filter', 'none');
-                d3.select(this).select('text')
-                    .attr('fill', 'var(--text-secondary)')
-                    .attr('font-weight', '400');
-                link.attr('stroke', 'var(--border)').attr('stroke-width', 1);
-            }});
-            node.on('click', function(e, d) {{ window.location = '/note/' + d.id; }});
-            simulation.on('tick', function() {{
-                link.attr('x1', function(d) {{ return d.source.x; }})
-                    .attr('y1', function(d) {{ return d.source.y; }})
-                    .attr('x2', function(d) {{ return d.target.x; }})
-                    .attr('y2', function(d) {{ return d.target.y; }});
-                node.attr('transform', function(d) {{ return 'translate(' + d.x + ',' + d.y + ')'; }});
-            }});
-        }});
+              .data(data.nodes).enter().append('g')
+              .style('cursor', 'pointer')
+              .call(d3.drag()
+                .on('start', function(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on('drag', function(e, d) { d.fx = e.x; d.fy = e.y; })
+                .on('end', function(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+            node.append('circle').attr('r', 6).attr('fill', 'var(--accent)').attr('stroke', 'var(--bg-primary)').attr('stroke-width', 2);
+            node.append('text').text(function(d) { return d.id; })
+              .attr('x', 12).attr('y', 4)
+              .attr('fill', 'var(--text-secondary)').attr('font-size', '12px')
+              .attr('font-family', "'Inter', system-ui, sans-serif");
+            node.on('click', function(e, d) { window.location = '/note/' + d.id; });
+            node.on('mouseenter', function(e, d) {
+              d3.select(this).select('circle').attr('r', 9).attr('fill', 'var(--accent-hover)');
+              d3.select(this).select('text').attr('fill', 'var(--text-primary)').attr('font-weight', '600');
+            }).on('mouseleave', function(e, d) {
+              d3.select(this).select('circle').attr('r', 6).attr('fill', 'var(--accent)');
+              d3.select(this).select('text').attr('fill', 'var(--text-secondary)').attr('font-weight', '400');
+            });
+            simulation.on('tick', function() {
+              link.attr('x1', function(d) { return d.source.x; }).attr('y1', function(d) { return d.source.y; })
+                  .attr('x2', function(d) { return d.target.x; }).attr('y2', function(d) { return d.target.y; });
+              node.attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+            });
+          })
+          .catch(function(err) {
+            var el = document.getElementById('graph');
+            if (el) el.innerHTML = '<div class="graph-error">Graph error: ' + err.message + '</div>';
+          });
+      }
+      if (document.readyState === 'complete') { renderGraph(); }
+      else { document.addEventListener('DOMContentLoaded', renderGraph); }
+    })();
     </script>
     """
     return render_page("Graph", body, active="graph")

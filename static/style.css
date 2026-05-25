@@ -876,6 +876,19 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
+  position: relative;
+}
+.graph-loading,
+.graph-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: var(--font-size-base);
+}
+.graph-error {
+  color: #e05a5a;
 }
 
 /* ── Dropdown ───────────────────────────────────────────── */
