@@ -531,6 +531,26 @@ async def edit_note(name: str):
         <button class="btn btn-primary" onclick="saveNote()">Save</button>
         <a href="/note/{name}" class="btn">Cancel</a>
     </div>
+
+    <div class="attachments-panel" id="attachmentsPanel">
+        <div class="attachments-header">
+            <h3>Attachments</h3>
+            <span class="attachments-count" id="attachmentsCount">0</span>
+        </div>
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-content">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                <span>Drop images here or click to upload</span>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        </div>
+        <div class="attachments-grid" id="attachmentsGrid"></div>
+    </div>
+
     <script>
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
@@ -802,6 +822,121 @@ async def edit_note(name: str):
             showToast('Save failed', 'error');
         }});
     }}
+
+    // ── Attachments panel ──────────────────────────────
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const attachmentsGrid = document.getElementById('attachmentsGrid');
+    const attachmentsCount = document.getElementById('attachmentsCount');
+
+    function formatSize(bytes) {{
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }}
+
+    function loadAttachments() {{
+        fetch('/api/attachments')
+            .then(function(r) {{ return r.json(); }})
+            .then(function(files) {{
+                attachmentsCount.textContent = files.length;
+                if (files.length === 0) {{
+                    attachmentsGrid.innerHTML = '<div class="attachments-empty">No attachments yet</div>';
+                    return;
+                }}
+                var html = '';
+                for (var i = 0; i < files.length; i++) {{
+                    var f = files[i];
+                    html += '<div class="attachment-item">'
+                        + '<div class="attachment-thumb">'
+                        + '<img src="' + f.url + '" alt="' + f.filename + '" loading="lazy">'
+                        + '</div>'
+                        + '<div class="attachment-info">'
+                        + '<span class="attachment-name" title="' + f.filename + '">' + f.filename + '</span>'
+                        + '<span class="attachment-size">' + formatSize(f.size) + '</span>'
+                        + '</div>'
+                        + '<button class="attachment-delete" onclick="deleteAttachment(\'' + f.filename + '\', this)" title="Delete attachment">&times;</button>'
+                        + '</div>';
+                }}
+                attachmentsGrid.innerHTML = html;
+            }});
+    }}
+
+    function deleteAttachment(filename, btn) {{
+        if (!confirm('Delete "' + filename + '"?')) return;
+        btn.disabled = true;
+        btn.textContent = '...';
+        fetch('/api/upload/' + encodeURIComponent(filename), {{ method: 'DELETE' }})
+            .then(function(r) {{ return r.json(); }})
+            .then(function(data) {{
+                if (data.ok) {{
+                    showToast('Attachment deleted', 'success');
+                    loadAttachments();
+                }} else {{
+                    showToast('Delete failed: ' + (data.error || 'unknown'), 'error');
+                    btn.disabled = false;
+                    btn.textContent = '\u00d7';
+                }}
+            }})
+            .catch(function() {{
+                showToast('Delete failed', 'error');
+                btn.disabled = false;
+                btn.textContent = '\u00d7';
+            }});
+    }}
+
+    // Drop zone click to open file picker
+    dropZone.addEventListener('click', function() {{
+        fileInput.click();
+    }});
+
+    // Drag over drop zone
+    dropZone.addEventListener('dragover', function(e) {{
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drop-zone-active');
+    }});
+
+    dropZone.addEventListener('dragleave', function(e) {{
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drop-zone-active');
+    }});
+
+    dropZone.addEventListener('drop', function(e) {{
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.remove('drop-zone-active');
+        var files = e.dataTransfer.files;
+        uploadFiles(files);
+    }});
+
+    // File input change
+    fileInput.addEventListener('change', function() {{
+        uploadFiles(fileInput.files);
+        fileInput.value = '';
+    }});
+
+    function uploadFiles(files) {{
+        var count = files.length;
+        var done = 0;
+        for (var i = 0; i < files.length; i++) {{
+            var file = files[i];
+            if (!file.type.startsWith('image/')) {{
+                showToast('Skipped: ' + file.name + ' (not an image)', 'info');
+                continue;
+            }}
+            (function(f) {{
+                uploadImage(f).then(function() {{
+                    done++;
+                    if (done >= count) loadAttachments();
+                }});
+            }})(file);
+        }}
+        if (count === 0) loadAttachments();
+    }}
+
+    loadAttachments();
     </script>
     <script>
     if ('{name}' === 'new') {{
@@ -961,6 +1096,39 @@ async def api_upload(file: UploadFile = File(...)):
         f.write(contents)
 
     return JSONResponse({"url": f"/static/uploads/{filename}"})
+
+
+@app.get("/api/attachments")
+async def api_attachments():
+    upload_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    files = []
+    for fname in sorted(os.listdir(upload_dir), reverse=True):
+        fpath = os.path.join(upload_dir, fname)
+        if os.path.isfile(fpath):
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in ALLOWED_EXTENSIONS:
+                stat = os.stat(fpath)
+                files.append({
+                    "filename": fname,
+                    "url": f"/static/uploads/{fname}",
+                    "size": stat.st_size,
+                    "created": datetime.fromtimestamp(stat.st_ctime, tz=timezone.utc).isoformat(),
+                })
+    return JSONResponse(files)
+
+
+@app.delete("/api/upload/{filename}")
+async def api_delete_upload(filename: str):
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return JSONResponse({"error": f"File type '{ext}' not allowed"}, status_code=400)
+    upload_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
+    fpath = os.path.join(upload_dir, filename)
+    if not os.path.isfile(fpath):
+        return JSONResponse({"error": "File not found"}, status_code=404)
+    os.remove(fpath)
+    return JSONResponse({"ok": True})
 
 
 @app.get("/health")
