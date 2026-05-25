@@ -170,14 +170,14 @@ class TestBacklinks:
         client.post("/api/note", json={"name": "target-note", "content": "Target content"})
         r = client.get("/note/target-note")
         assert r.status_code == 200
-        assert "backlinks-panel" in r.text
+        assert "sidebar-backlink-item" in r.text
         assert "linker" in r.text
 
     def test_backlinks_note_page_no_backlinks(self, client):
         client.post("/api/note", json={"name": "orphan", "content": "No links to me"})
         r = client.get("/note/orphan")
         assert r.status_code == 200
-        assert "backlinks-panel" in r.text
+        assert "sidebar-backlinks" in r.text
         assert "No backlinks" in r.text
 
 

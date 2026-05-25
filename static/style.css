@@ -1181,6 +1181,51 @@
   color: #22c55e;
 }
 
+/* ── Sidebar Backlinks Section ─────────────────────────── */
+.sidebar-backlinks {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0 2px;
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height 0.3s var(--easing), opacity 0.25s, padding 0.25s;
+  opacity: 1;
+}
+
+.sidebar-backlinks.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.sidebar-backlink-item {
+  display: block;
+  padding: 5px 10px;
+  font-size: var(--font-size-sm);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  transition: background 0.15s var(--easing), color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-backlink-item:hover {
+  background: var(--bg-hover);
+  color: var(--accent-hover);
+  text-decoration: none;
+}
+
+.sidebar-backlink-empty {
+  padding: 5px 10px;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ── Graph ──────────────────────────────────────────────── */
 .graph-container {
   width: 100%;

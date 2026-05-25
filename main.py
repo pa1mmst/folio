@@ -224,7 +224,7 @@ def _folder_tree_html(folders, current_folder=""):
     return _render(tree)
 
 
-def sidebar_html(active="notes", tags=None, folders=None, current_folder=""):
+def sidebar_html(active="notes", tags=None, folders=None, current_folder="", backlinks=None):
     nav_items = {"notes": {"label": "Notes", "href": "/", "icon": "file-text"}, "graph": {"label": "Graph", "href": "/graph", "icon": "graph"}}
     notes_svg = '<path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
     graph_svg = '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -241,6 +241,16 @@ def sidebar_html(active="notes", tags=None, folders=None, current_folder=""):
             tag_links += f'<a href="/?tag={t["tag"]}" class="sidebar-tag">#{t["tag"]}</a>'
 
     folder_links = _folder_tree_html(folders or [], current_folder) if folders else ""
+
+    backlink_items = ""
+    if backlinks is not None:
+        if backlinks:
+            backlink_items = "".join(
+                f'<a href="/note/{bl["source_note"]}" class="sidebar-backlink-item">{bl["source_note"]}</a>'
+                for bl in backlinks
+            )
+        else:
+            backlink_items = '<div class="sidebar-backlink-empty">No backlinks</div>'
 
     return f"""<aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
@@ -266,14 +276,23 @@ def sidebar_html(active="notes", tags=None, folders=None, current_folder=""):
     </button>
     <div class="sidebar-tags" id="tagSection">{tag_links}</div>
   </div>
+  <div class="sidebar-section" id="backlinkSidebarSection">
+    <button class="sidebar-collapse-btn" onclick="toggleBacklinkSection()" id="backlinkToggle">
+      <svg class="chevron" id="backlinkChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Backlinks
+    </button>
+    <div class="sidebar-backlinks" id="backlinkSection">{backlink_items}</div>
+  </div>
 </aside>"""
 
 
-def render_page(title, body, active="notes", current_folder=""):
+def render_page(title, body, active="notes", current_folder="", backlinks=None):
     tags = get_all_tags()
     folders = get_all_folders_with_counts()
     folder_names = sorted(set(f["folder"] for f in folders))
-    sb = sidebar_html(active, tags, folder_names, current_folder)
+    sb = sidebar_html(active, tags, folder_names, current_folder, backlinks)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -333,6 +352,12 @@ def render_page(title, body, active="notes", current_folder=""):
     function toggleTagSection() {{
         var section = document.getElementById('tagSection');
         var chevron = document.getElementById('tagChevron');
+        section.classList.toggle('collapsed');
+        chevron.classList.toggle('rotated');
+    }}
+    function toggleBacklinkSection() {{
+        var section = document.getElementById('backlinkSection');
+        var chevron = document.getElementById('backlinkChevron');
         section.classList.toggle('collapsed');
         chevron.classList.toggle('rotated');
     }}
@@ -525,14 +550,6 @@ async def view_note(name: str):
     tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags)
 
     backlinks = get_backlinks(name)
-    if backlinks:
-        backlinks_items = "".join(
-            f'<a href="/note/{bl["source_note"]}" class="backlink-item">{bl["source_note"]}</a>'
-            for bl in backlinks
-        )
-        backlinks_html = f'<div class="backlinks-panel"><h3>Backlinks</h3>{backlinks_items}</div>'
-    else:
-        backlinks_html = '<div class="backlinks-panel"><h3>Backlinks</h3><div class="backlink-empty">No backlinks</div></div>'
 
     note_folder = note.get("folder", "")
     folder_breadcrumb = ""
@@ -582,10 +599,9 @@ async def view_note(name: str):
         if (m) m.classList.remove('show');
     }});
     </script>
-        {backlinks_html}
     </div>
     """
-    return render_page(name, body, current_folder=note_folder)
+    return render_page(name, body, current_folder=note_folder, backlinks=backlinks)
 
 
 @app.get("/edit/{name:path}", response_class=HTMLResponse)
