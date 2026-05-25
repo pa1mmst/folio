@@ -256,6 +256,60 @@ class TestImageUpload:
         assert "clipboardData" in r.text or "getAsFile" in r.text
 
 
+class TestAttachments:
+    def test_attachments_list_empty(self, client):
+        import os, shutil
+        upload_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        for f in os.listdir(upload_dir):
+            os.remove(os.path.join(upload_dir, f))
+        r = client.get("/api/attachments")
+        assert r.status_code == 200
+        assert r.json() == []
+
+    def test_attachments_list_after_upload(self, client):
+        r = client.post("/api/upload", files={"file": ("test.png", b"fake-png-content", "image/png")})
+        assert r.status_code == 200
+        filename = r.json()["url"].split("/")[-1]
+        r2 = client.get("/api/attachments")
+        assert r2.status_code == 200
+        data = r2.json()
+        assert any(f["filename"] == filename for f in data)
+
+    def test_attachments_delete(self, client):
+        r = client.post("/api/upload", files={"file": ("del-test.png", b"delete-me", "image/png")})
+        assert r.status_code == 200
+        filename = r.json()["url"].split("/")[-1]
+        r2 = client.delete(f"/api/upload/{filename}")
+        assert r2.status_code == 200
+        assert r2.json()["ok"] is True
+
+    def test_attachments_delete_not_found(self, client):
+        r = client.delete("/api/upload/nonexistent.png")
+        assert r.status_code == 404
+        assert "not found" in r.text.lower()
+
+    def test_attachments_delete_unsupported_type(self, client):
+        r = client.delete("/api/upload/file.txt")
+        assert r.status_code == 400
+        assert "not allowed" in r.text.lower()
+
+    def test_editor_has_attachments_panel(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "attachments-panel" in r.text
+        assert "dropZone" in r.text
+        assert "attachmentsGrid" in r.text
+        assert "loadAttachments" in r.text
+
+    def test_editor_has_drop_zone(self, client):
+        r = client.get("/edit/test-editor")
+        assert r.status_code == 200
+        assert "drop-zone" in r.text
+        assert "fileInput" in r.text
+        assert "uploadFiles" in r.text
+
+
 class TestExport:
     def test_export_html(self, client):
         client.post("/api/note", json={"name": "export-test", "content": "# Hello\n\nThis is **bold** and *italic*."})
