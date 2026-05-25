@@ -472,6 +472,13 @@ async def view_note(name: str):
         <h2>{name}</h2>
         <div class="tags">{tags_html}</div>
         <div class="note-view-content">{html_content}</div>
+        <div class="note-footer">
+            <span class="note-footer-label">Download</span>
+            <div class="note-footer-links">
+                <a href="/api/export-pdf/{name}" class="btn btn-download" target="_blank">Download PDF</a>
+                <a href="/api/export-html/{name}" class="btn btn-download" target="_blank">Download HTML</a>
+            </div>
+        </div>
         <div class="note-view-actions">
             <a href="/edit/{name}" class="btn">Edit</a>
             <div class="dropdown">
