@@ -135,24 +135,24 @@ def inline(text):
 # ── HTML template ─────────────────────────────────────────────
 BASE_STYLE = """
 :root {
-  --bg-primary: #0d1117;
-  --bg-secondary: #161b22;
-  --bg-tertiary: #21262d;
-  --bg-hover: #1c2128;
-  --bg-active: #292e36;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --text-muted: #484f58;
-  --text-accent: #58a6ff;
-  --accent: #a78bfa;
-  --accent-hover: #8b5cf6;
-  --accent-muted: rgba(167, 139, 250, 0.12);
-  --accent-glow: rgba(167, 139, 250, 0.2);
-  --border: #30363d;
-  --border-muted: #21262d;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --bg-primary: #f8f9fa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f3f5;
+  --bg-hover: #f0f1f3;
+  --bg-active: #e9ecef;
+  --text-primary: #1a1a2e;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-accent: #e07a5f;
+  --accent: #e07a5f;
+  --accent-hover: #c96a4f;
+  --accent-muted: rgba(224, 122, 95, 0.1);
+  --accent-glow: rgba(224, 122, 95, 0.18);
+  --border: #e5e7eb;
+  --border-muted: #f0f1f3;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
   --radius-full: 9999px;
   --easing: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
@@ -400,26 +400,38 @@ async def home(request: Request, q: str = "", tag: str = ""):
                     break
         note_cards += f"""
         <div class="note-card">
-            <div class="note-card-title"><a href="/note/{n['name']}">{n['name']}</a></div>
-            <div class="note-card-meta">{updated}</div>
-            {'<div class="note-card-preview">' + content_preview + '</div>' if content_preview else ''}
-            <div class="tags">{tags_html}</div>
+            <div class="note-card-header">
+                <h3 class="note-card-title"><a href="/note/{n['name']}">{n['name']}</a></h3>
+            </div>
+            {'<div class="note-card-preview">' + content_preview + '</div>' if content_preview else '<div class="note-card-preview" style="color:var(--text-muted);font-style:italic;">Empty note</div>'}
+            <div class="note-card-footer">
+                <div class="tags">{tags_html}</div>
+                <span class="note-card-meta">{updated}</span>
+            </div>
         </div>"""
 
     if not note_cards:
         skeleton = ""
         if not q and not tag:
             skeleton = """
-            <div class="skeleton-note"><div class="skeleton-line w-60"></div><div class="skeleton-line w-30"></div><div class="skeleton-line w-80"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-50"></div><div class="skeleton-line w-40"></div><div class="skeleton-line w-70"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-65"></div><div class="skeleton-line w-25"></div><div class="skeleton-line w-75"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-55"></div><div class="skeleton-line w-85"></div><div class="skeleton-line w-40"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-45"></div><div class="skeleton-line w-75"></div><div class="skeleton-line w-35"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-60"></div><div class="skeleton-line w-80"></div><div class="skeleton-line w-30"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-50"></div><div class="skeleton-line w-70"></div><div class="skeleton-line w-45"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-65"></div><div class="skeleton-line w-60"></div><div class="skeleton-line w-50"></div></div>
+            <div class="skeleton-note"><div class="skeleton-line w-40"></div><div class="skeleton-line w-90"></div><div class="skeleton-line w-25"></div></div>
             """
         note_cards = '<div class="empty"><p>No notes yet. Create your first one!</p></div>' + skeleton
 
     body = f"""
     <div class="page-header">
         <h1 class="page-title">Notes</h1>
-        <a href="/edit/new" class="btn btn-primary">New Note</a>
+        <a href="/edit/new" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
+                <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            New Note
+        </a>
     </div>
     <div class="search-bar">
         <input type="text" name="q" placeholder="Search notes..." value="{q}" id="searchInput"
