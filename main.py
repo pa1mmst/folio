@@ -240,6 +240,8 @@ def render_page(title, body, active="notes"):
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>{BASE_STYLE}</style>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/styles/github.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/highlight.min.js"></script>
 </head>
 <body>
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -321,6 +323,7 @@ def render_page(title, body, active="notes"):
             }}
         }}
     }});
+    hljs.highlightAll();
     </script>
 </body>
 </html>"""
@@ -744,6 +747,7 @@ async def edit_note(name: str):
 
     function updatePreview() {{
         preview.innerHTML = markdownToHtml(editor.value);
+        preview.querySelectorAll('pre code').forEach(function(b) {{ hljs.highlightElement(b); }});
     }}
 
     let debounceTimer;
@@ -769,7 +773,11 @@ async def edit_note(name: str):
 
             if (s.startsWith('```')) {{
                 if (inCode) {{ html.push('</code></pre>'); inCode = false; }}
-                else {{ html.push('<pre><code>'); inCode = true; }}
+                else {{
+                    let lang = s.slice(3).trim();
+                    html.push(lang ? '<pre><code class="language-'+lang+'">' : '<pre><code>');
+                    inCode = true;
+                }}
                 continue;
             }}
             if (inCode) {{

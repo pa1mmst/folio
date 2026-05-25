@@ -598,7 +598,6 @@
   padding: 0;
   border-radius: 0;
   font-size: var(--font-size-sm);
-  color: var(--text-secondary);
   line-height: 1.6;
 }
 
@@ -885,7 +884,6 @@
   background: none;
   padding: 0;
   border-radius: 0;
-  color: var(--text-secondary);
 }
 
 .preview-pane img {
