@@ -2,12 +2,15 @@ import os
 import sys
 import pytest
 
-# Ensure we use test DB
 os.environ["VAULT_DIR"] = "/tmp/vault-test"
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from vault import parse_tags, parse_wikilinks, strip_frontmatter, write_note, read_note, delete_note, note_exists
+from vault import (
+    parse_tags, parse_wikilinks, strip_frontmatter,
+    write_note, read_note, delete_note, note_exists,
+    get_folder, get_all_folders, list_notes,
+)
 
 
 class TestParseTags:
@@ -36,7 +39,6 @@ class TestParseTags:
 
 class TestParseWikilinks:
     def test_single_link(self):
-        assert parse_tags("See [[Other Note]]") is not None  # tags won't catch this
         assert parse_wikilinks("See [[Other Note]]") == ["Other Note"]
 
     def test_multiple_links(self):
@@ -80,3 +82,60 @@ class TestVaultFiles:
 
     def test_note_exists_false(self):
         assert not note_exists("ghost-note")
+
+
+class TestVaultFolders:
+    def setup_method(self):
+        os.makedirs("/tmp/vault-test", exist_ok=True)
+
+    def test_get_folder_from_name(self):
+        assert get_folder("projects/idea") == "projects"
+        assert get_folder("a/b/c") == "a/b"
+        assert get_folder("root-note") == ""
+
+    def test_write_note_in_folder(self):
+        note = write_note("test-folder/my-note", "# Hello folder")
+        assert note["name"] == "test-folder/my-note"
+        assert note["folder"] == "test-folder"
+        read = read_note("test-folder/my-note")
+        assert read is not None
+        assert read["folder"] == "test-folder"
+        assert read["content"] == "# Hello folder"
+
+    def test_write_note_in_nested_folder(self):
+        note = write_note("a/b/c/nested-note", "Nested content")
+        assert note["folder"] == "a/b/c"
+        read = read_note("a/b/c/nested-note")
+        assert read is not None
+        assert read["folder"] == "a/b/c"
+
+    def test_list_notes_includes_folder_notes(self):
+        write_note("list-folder/n1", "n1")
+        write_note("list-folder/n2", "n2")
+        notes = list_notes()
+        names = [n["name"] for n in notes]
+        assert "list-folder/n1" in names
+        assert "list-folder/n2" in names
+
+    def test_get_all_folders(self):
+        write_note("folders-test/x", "x")
+        write_note("folders-test/sub/y", "y")
+        folders = get_all_folders()
+        assert "folders-test" in folders
+        assert "folders-test/sub" in folders
+
+    def test_delete_cleans_folders(self):
+        write_note("delete-test/sub/deep/note", "content")
+        assert note_exists("delete-test/sub/deep/note")
+        delete_note("delete-test/sub/deep/note")
+        assert not note_exists("delete-test/sub/deep/note")
+        assert not os.path.exists("/tmp/vault-test/delete-test/sub/deep")
+        assert os.path.exists("/tmp/vault-test")
+
+    def test_delete_only_empties_empty_dirs(self):
+        write_note("sibling-test/a", "a")
+        write_note("sibling-test/sub/b", "b")
+        assert note_exists("sibling-test/a")
+        delete_note("sibling-test/a")
+        assert os.path.exists("/tmp/vault-test/sibling-test")
+        assert os.path.exists("/tmp/vault-test/sibling-test/sub")

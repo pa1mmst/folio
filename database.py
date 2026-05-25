@@ -17,6 +17,7 @@ def init_db():
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS notes (
             name TEXT PRIMARY KEY,
+            folder TEXT NOT NULL DEFAULT '',
             content TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT '',
             updated_at TEXT NOT NULL DEFAULT ''
@@ -41,12 +42,20 @@ def init_db():
     conn.close()
 
 
-def index_note(name, content, created_at, updated_at, tags, links):
-    """Index or re-index a note."""
+def migrate_db():
+    conn = get_conn()
+    try:
+        conn.execute("ALTER TABLE notes ADD COLUMN folder TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    conn.close()
+
+
+def index_note(name, content, created_at, updated_at, tags, links, folder=""):
     conn = get_conn()
     conn.execute(
-        "INSERT OR REPLACE INTO notes (name, content, created_at, updated_at) VALUES (?, ?, ?, ?)",
-        (name, content, created_at, updated_at),
+        "INSERT OR REPLACE INTO notes (name, folder, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        (name, folder, content, created_at, updated_at),
     )
     conn.execute("DELETE FROM tags WHERE note_name = ?", (name,))
     conn.execute("DELETE FROM links WHERE source_note = ?", (name,))
@@ -65,18 +74,24 @@ def remove_note(name):
     conn.close()
 
 
-def search_notes(query, tag=None):
+def search_notes(query, tag=None, folder=None):
     conn = get_conn()
+    params = []
+    where_clauses = []
     if tag:
-        rows = conn.execute(
-            "SELECT n.name, n.updated_at FROM notes n JOIN tags t ON n.name = t.note_name WHERE t.tag = ? AND n.content LIKE ? ORDER BY n.updated_at DESC",
-            (tag, f"%{query}%"),
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT name, updated_at FROM notes WHERE content LIKE ? OR name LIKE ? ORDER BY updated_at DESC",
-            (f"%{query}%", f"%{query}%"),
-        ).fetchall()
+        where_clauses.append("t.tag = ?")
+        params.append(tag)
+    if folder:
+        where_clauses.append("n.folder = ?")
+        params.append(folder)
+    where_clauses.append("(n.content LIKE ? OR n.name LIKE ?)")
+    params.extend([f"%{query}%", f"%{query}%"])
+    where_sql = " AND ".join(where_clauses)
+    join_sql = " JOIN tags t ON n.name = t.note_name" if tag else ""
+    rows = conn.execute(
+        f"SELECT n.name, n.folder, n.updated_at FROM notes n{join_sql} WHERE {where_sql} ORDER BY n.updated_at DESC",
+        params,
+    ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -95,6 +110,16 @@ def get_all_links():
     return [dict(r) for r in rows]
 
 
+def get_backlinks(name):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT source_note FROM links WHERE target_note = ? ORDER BY source_note",
+        (name,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 def get_all_note_names():
     conn = get_conn()
     rows = conn.execute("SELECT name FROM notes ORDER BY name").fetchall()
@@ -102,11 +127,20 @@ def get_all_note_names():
     return [r["name"] for r in rows]
 
 
-def get_backlinks(name):
+def get_notes_by_folder(folder):
     conn = get_conn()
     rows = conn.execute(
-        "SELECT source_note FROM links WHERE target_note = ? ORDER BY source_note",
-        (name,),
+        "SELECT name, updated_at FROM notes WHERE folder = ? ORDER BY updated_at DESC",
+        (folder,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_all_folders_with_counts():
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT folder, COUNT(*) as count FROM notes WHERE folder != '' GROUP BY folder ORDER BY folder"
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
