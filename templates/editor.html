@@ -22,7 +22,8 @@
   <div class="preview-pane" id="preview"></div>
 </div>
 <div class="editor-actions">
-  <button class="btn btn-primary" onclick="saveNote()">Save</button>
+  <button class="btn btn-primary" id="saveBtn" onclick="saveNote()">Save</button>
+  <span class="save-indicator" id="saveIndicator"></span>
   <a href="/note/{{ name }}" class="btn">Cancel</a>
 </div>
 
@@ -134,6 +135,11 @@
   editor.addEventListener('keydown', function(e) {
     const mod = e.ctrlKey || e.metaKey;
     if (!mod) return;
+    if (e.key === 's') {
+      e.preventDefault();
+      saveNote();
+      return;
+    }
     const map = {b:'bold', i:'italic'};
     const cmd = map[e.key];
     if (cmd) {
@@ -154,6 +160,55 @@
 
   editor.addEventListener('input', schedulePreview);
   updatePreview();
+
+  var SAVED = 'saved';
+  var SAVING = 'saving';
+  var UNSAVED = 'unsaved';
+  var DRAFT_KEY = 'folio-draft-' + '{{ name }}';
+  var currentStatus = SAVED;
+  var saveIndicator = document.getElementById('saveIndicator');
+  var saveBtn = document.getElementById('saveBtn');
+
+  function setSaveStatus(status) {
+    currentStatus = status;
+    var label = '';
+    if (status === SAVING) { label = 'Saving...'; }
+    else if (status === SAVED) { label = 'Saved'; }
+    else if (status === UNSAVED) { label = 'Unsaved changes'; }
+    saveIndicator.textContent = label;
+    saveIndicator.className = 'save-indicator' + (status === SAVED ? ' show' : '');
+    saveBtn.disabled = (status === SAVING);
+    saveBtn.classList.toggle('btn-saving', status === SAVING);
+  }
+
+  editor.addEventListener('input', function() {
+    if (currentStatus === SAVED) {
+      setSaveStatus(UNSAVED);
+    }
+  });
+
+  function autoSaveDraft() {
+    try {
+      localStorage.setItem(DRAFT_KEY, editor.value);
+    } catch (e) {}
+  }
+
+  function restoreDraft() {
+    try {
+      var draft = localStorage.getItem(DRAFT_KEY);
+      if (draft && draft !== editor.value) {
+        editor.value = draft;
+        schedulePreview();
+        setSaveStatus(UNSAVED);
+      }
+    } catch (e) {}
+  }
+
+  restoreDraft();
+  setInterval(autoSaveDraft, 30000);
+  window.addEventListener('beforeunload', function() {
+    autoSaveDraft();
+  });
 
   function markdownToHtml(text) {
     var lines = text.split('\n');
@@ -214,12 +269,17 @@
     var content = editor.value;
     var name = '{{ name }}' === 'new' ? prompt('Note name:') : '{{ name }}';
     if (!name) return;
+    setSaveStatus(SAVING);
+    try { localStorage.removeItem(DRAFT_KEY); } catch (e) {}
     fetch('/api/note', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({name: name, content: content})
     }).then(function(r) { return r.json(); }).then(function(d) {
+      setSaveStatus(SAVED);
       window.location = '/note/' + d.name;
+    }).catch(function() {
+      setSaveStatus(UNSAVED);
     });
   }
 })();
