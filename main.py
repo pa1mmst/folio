@@ -489,7 +489,7 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
                     break
         folder_badge = f'<span class="note-folder-badge">{note_folder}</span>' if note_folder else ""
         note_cards += f"""
-        <div class="note-card">
+        <div class="note-card" onclick="if(!event.target.closest('a,button')){{window.location='/note/{n['name']}'}}">
             <div class="note-card-header">
                 {folder_badge}
                 <h3 class="note-card-title"><a href="/note/{n['name']}">{n['name'].split('/')[-1]}</a></h3>
@@ -515,10 +515,21 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
         msg = "No notes here yet." if folder else "No notes yet. Create your first one!"
         note_cards = f'<div class="empty"><p>{msg}</p></div>' + skeleton
 
-    folder_title = f" / {folder}" if folder else ""
+    folder_breadcrumb = ""
+    page_title_html = '<h1 class="page-title">Notes</h1>'
+    if folder:
+        parts = folder.split("/")
+        crumbs = '<a href="/" class="folder-crumb">Notes</a>'
+        path = ""
+        for p in parts:
+            path = f"{path}/{p}" if path else p
+            crumbs += '<span class="folder-crumb-sep">/</span>'
+            crumbs += f'<a href="/?folder={path}" class="folder-crumb">{p}</a>'
+        folder_breadcrumb = f'<div class="folder-breadcrumb">{crumbs}</div>'
+        page_title_html = f'<div>{folder_breadcrumb}<h1 class="page-title">Notes</h1></div>'
     body = f"""
     <div class="page-header">
-        <h1 class="page-title">Notes{folder_title}</h1>
+        {page_title_html}
         <a href="/edit/new" class="btn btn-primary">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -571,13 +582,6 @@ async def view_note(name: str):
         <h2>{name.split('/')[-1]}</h2>
         <div class="tags">{tags_html}</div>
         <div class="note-view-content">{html_content}</div>
-        <div class="note-footer">
-            <span class="note-footer-label">Download</span>
-            <div class="note-footer-links">
-                <a href="/api/export-pdf/{name}" class="btn btn-download" target="_blank">Download PDF</a>
-                <a href="/api/export-html/{name}" class="btn btn-download" target="_blank">Download HTML</a>
-            </div>
-        </div>
         <div class="note-view-actions">
             <a href="/edit/{name}" class="btn">Edit</a>
             <div class="dropdown">
@@ -694,10 +698,10 @@ async def edit_note(name: str):
                 case 'strong': case 'b': return `**${{inner}}**`;
                 case 'em': case 'i': return `*${{inner}}*`;
                 case 's': case 'strike': case 'del': return `~~${{inner}}~~`;
-                case 'code': return `\\`${{inner}}\\``;
+                case 'code': return `\`${{inner}}\``;
                 case 'a': return `[${{inner}}](${{node.getAttribute('href') || ''}})`;
                 case 'img': return `![${{node.getAttribute('alt') || ''}}](${{node.getAttribute('src') || ''}})`;
-                case 'br': return '\\n';
+                case 'br': return '\n';
                 default: return inner;
             }}
         }}
@@ -756,12 +760,12 @@ async def edit_note(name: str):
         }}
 
         Array.from(div.childNodes).forEach(processBlock);
-        return lines.join('\\n').replace(/\\n{{3,}}/g, '\\n\\n').trim();
+        return lines.join('\n').replace(/\n{{3,}}/g, '\n\n').trim();
     }}
 
     // ── Enhanced markdownToHtml for preview ──────────────────────
     function markdownToHtml(text) {{
-        let lines = text.split('\\n');
+        let lines = text.split('\n');
         let html = [];
         let inCode = false;
         let inList = false;
@@ -785,7 +789,7 @@ async def edit_note(name: str):
             }}
 
             // Horizontal rule
-            if (/^\\s*[-*_]{{3,}}\\s*$/.test(s)) {{
+            if (/^\s*[-*_]{{3,}}\s*$/.test(s)) {{
                 if (inList) {{ html.push('</ul>'); inList = false; }}
                 html.push('<hr>');
                 continue;
@@ -799,40 +803,44 @@ async def edit_note(name: str):
             }}
 
             // Close lists when needed
-            if (inList && !s.startsWith('- ') && !s.startsWith('* ') && !/^\\d+\\.\\s/.test(s)) {{
+            if (inList && !s.startsWith('- ') && !s.startsWith('* ') && !/^\d+\.\s/.test(s)) {{
                 html.push('</ul>');
                 inList = false;
             }}
 
             // Headings
-            if (s.startsWith('### ')) {{ html.push('<h3>'+inline(s.slice(4))+'</h3>'); }}
+            if (s.startsWith('###### ')) {{ html.push('<h6>'+inline(s.slice(7))+'</h6>'); }}
+            else if (s.startsWith('##### ')) {{ html.push('<h5>'+inline(s.slice(6))+'</h5>'); }}
+            else if (s.startsWith('#### ')) {{ html.push('<h4>'+inline(s.slice(5))+'</h4>'); }}
+            else if (s.startsWith('### ')) {{ html.push('<h3>'+inline(s.slice(4))+'</h3>'); }}
             else if (s.startsWith('## ')) {{ html.push('<h2>'+inline(s.slice(3))+'</h2>'); }}
             else if (s.startsWith('# ')) {{ html.push('<h1>'+inline(s.slice(2))+'</h1>'); }}
             else if (s.startsWith('- ') || s.startsWith('* ')) {{
                 if (!inList || inOrderedList) {{ html.push('<ul>'); inList = true; inOrderedList = false; }}
                 html.push('<li>'+inline(s.slice(2))+'</li>');
             }}
-            else if (/^\\d+\\.\\s/.test(s)) {{
+            else if (/^\d+\.\s/.test(s)) {{
                 if (!inList || !inOrderedList) {{ html.push('<ol>'); inList = true; inOrderedList = true; }}
-                html.push('<li>'+inline(s.replace(/^\\d+\\.\\s/, ''))+'</li>');
+                html.push('<li>'+inline(s.replace(/^\d+\.\s/, ''))+'</li>');
             }}
             else if (s === '') {{ html.push('<br>'); }}
             else {{ html.push('<p>'+inline(line)+'</p>'); }}
         }}
         if (inList) html.push(inOrderedList ? '</ol>' : '</ul>');
         if (inCode) html.push('</code></pre>');
-        return html.join('\\n');
+        return html.join('\n');
     }}
 
     function inline(text) {{
+        if (!text) return '';
         text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-        text = text.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
-        text = text.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+        text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
         text = text.replace(/~~(.+?)~~/g, '<s>$1</s>');
-        text = text.replace(/!\\[([^\\]]*)\\]\\(([^)]+)\\)/g, '<img src="$2" alt="$1">');
-        text = text.replace(/\\[\\[([^\\]]+)\\]\\]/g, '<a href="/note/$1" class="wikilink">$1</a>');
-        text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, '<a href="$2" target="_blank">$1</a>');
-        text = text.replace(/(?<!\\w)#([a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ0-9_\\-/]*)/g, '<a href="/?tag=$1" class="tag">#$1</a>');
+        text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
+        text = text.replace(/\[\[([^\]]+)\]\]/g, '<a href="/note/$1" class="wikilink">$1</a>');
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        text = text.replace(/(?:^|\s)#([a-zA-Zа-яА-ЯёЁ][a-zA-Zа-яА-ЯёЁ0-9_\-/]*)/g, '$1<a href="/?tag=$2" class="tag">#$2</a>');
         return text;
     }}
 
@@ -844,14 +852,18 @@ async def edit_note(name: str):
 
     // ── Update preview and word count ─────────────────────────────
     function updatePreview() {{
-        const md = getMarkdown();
-        markdownBuffer.value = md;
-        preview.innerHTML = markdownToHtml(md);
-        preview.querySelectorAll('pre code').forEach(function(b) {{ hljs.highlightElement(b); }});
-        // Word count
-        const words = md.trim() ? md.trim().split(/\\s+/).length : 0;
-        const chars = md.length;
-        wordCountEl.textContent = words + ' words | ' + chars + ' chars';
+        try {{
+            const md = getMarkdown() || '';
+            markdownBuffer.value = md;
+            preview.innerHTML = markdownToHtml(md);
+            try {{ preview.querySelectorAll('pre code').forEach(function(b) {{ hljs.highlightElement(b); }}); }} catch(e) {{}}
+            // Word count
+            const words = md.trim() ? md.trim().split(/\\s+/).length : 0;
+            const chars = md.length;
+            wordCountEl.textContent = words + ' words | ' + chars + ' chars';
+        }} catch(e) {{
+            console.error('Preview update failed:', e);
+        }}
     }}
 
     let debounceTimer;
@@ -937,7 +949,7 @@ async def edit_note(name: str):
                     if (sel) {{
                         document.execCommand('createLink', false, url);
                     }} else {{
-                        document.execCommand('insertHTML', false, '<a href="' + url.replace(/"/g, '&quot;') + '">' + url.replace(/^https?:\\/\\//, '').replace(/\\/$/, '') + '</a>');
+                        document.execCommand('insertHTML', false, '<a href="' + url.replace(/"/g, '&quot;') + '">' + url.replace(/^https?:\/\//, '').replace(/\/$/, '') + '</a>');
                     }}
                 }}
                 break;
@@ -977,7 +989,7 @@ async def edit_note(name: str):
 
     // ── Source mode markdown insertion ─────────────────────────
     function getLineStart(text, pos) {{
-        return text.lastIndexOf('\\n', pos - 1) + 1;
+        return text.lastIndexOf('\n', pos - 1) + 1;
     }}
 
     function insert(ta, str, cursorOffset) {{
@@ -1006,7 +1018,7 @@ async def edit_note(name: str):
         const text = ta.value;
         const sel = text.substring(start, end);
         const lineStart = getLineStart(text, start);
-        const lineEnd = text.indexOf('\\n', start);
+        const lineEnd = text.indexOf('\n', start);
         const line = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd);
         const lineSelStart = start - lineStart;
 
@@ -1155,7 +1167,7 @@ async def edit_note(name: str):
                 const pos = ta.selectionStart;
                 const before = ta.value.substring(0, pos);
                 const after = ta.value.substring(ta.selectionEnd);
-                const imgMd = `![](${{data.url}})\\n`;
+                const imgMd = `![](${{data.url}})\n`;
                 ta.value = before + imgMd + after;
                 ta.setSelectionRange(pos + imgMd.length, pos + imgMd.length);
                 ta.dispatchEvent(new Event('input'));
@@ -1220,7 +1232,10 @@ async def edit_note(name: str):
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
             body: JSON.stringify({{name, content}})
-        }}).then(r => r.json()).then(d => {{
+        }}).then(function(r) {{
+            if (!r.ok) return r.json().then(function(e) {{ throw new Error(e.error || 'Save failed'); }});
+            return r.json();
+        }}).then(function(d) {{
             dirty = false;
             btn.textContent = 'Saved!';
             btn.disabled = false;
@@ -1230,11 +1245,12 @@ async def edit_note(name: str):
             setTimeout(function() {{
                 window.location = '/note/' + d.name;
             }}, 600);
-        }}).catch(function() {{
+        }}).catch(function(e) {{
+            console.error('Save error:', e);
             btn.textContent = originalText;
             btn.disabled = false;
             btn.classList.remove('btn-saving');
-            showToast('Save failed', 'error');
+            showToast(e.message || 'Save failed', 'error');
         }});
     }}
 
@@ -1250,10 +1266,13 @@ async def edit_note(name: str):
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
             body: JSON.stringify({{name: NOTE_NAME, content}})
-        }}).then(function(r) {{ return r.json(); }}).then(function() {{
+        }}).then(function(r) {{
+            if (!r.ok) throw new Error('Auto-save HTTP ' + r.status);
+            return r.json();
+        }}).then(function() {{
             dirty = false;
-        }}).catch(function() {{
-            showToast('Auto-save failed', 'error');
+        }}).catch(function(e) {{
+            console.error('Auto-save error:', e);
         }});
     }}
 
