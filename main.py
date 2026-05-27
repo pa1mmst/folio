@@ -692,6 +692,7 @@ async def edit_note(name: str):
     <div class="editor-actions">
         <button class="btn btn-primary" onclick="saveNote()">Save</button>
         <a href="/note/{name}" class="btn">Cancel</a>
+        <span class="editor-footer-word-count" id="wordCountFooter"></span>
     </div>
 
     <div class="attachments-panel" id="attachmentsPanel">
@@ -719,6 +720,7 @@ async def edit_note(name: str):
     const markdownBuffer = document.getElementById('markdownBuffer');
     const preview = document.getElementById('preview');
     const wordCountEl = document.getElementById('wordCount');
+    const wordCountFooterEl = document.getElementById('wordCountFooter');
     const editorStatus = document.getElementById('editorStatus');
 
     let isSourceMode = false;
@@ -903,6 +905,7 @@ async def edit_note(name: str):
             const words = md.trim() ? md.trim().split(/\\s+/).length : 0;
             const chars = md.length;
             wordCountEl.textContent = words + ' words | ' + chars + ' chars';
+            wordCountFooterEl.textContent = words + ' words';
         }} catch(e) {{
             console.error('Preview update failed:', e);
         }}
