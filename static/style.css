@@ -1087,6 +1087,14 @@
   position: relative;
 }
 
+.editor-footer-word-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
 /* ── Attachments Panel ─────────────────────────────────── */
 .attachments-panel {
   margin-top: 20px;
