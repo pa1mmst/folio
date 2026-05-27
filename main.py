@@ -1380,7 +1380,7 @@ async def edit_note(name: str):
                         + '<span class="attachment-name" title="' + f.filename + '">' + f.filename + '</span>'
                         + '<span class="attachment-size">' + formatSize(f.size) + '</span>'
                         + '</div>'
-                        + '<button class="attachment-delete" onclick="deleteAttachment(String.fromCharCode(39) + f.filename + String.fromCharCode(39), this)" title="Delete attachment">&times;</button>'
+                        + '<button class="attachment-delete" onclick="deleteAttachment(\'' + f.filename.replace("'", "\\'") + '\', this)" title="Delete attachment">&times;</button>'
                         + '</div>';
                 }}
                 attachmentsGrid.innerHTML = html;
