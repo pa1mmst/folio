@@ -240,33 +240,55 @@ a:hover { color: var(--accent-hover); }
 """
 
 
-def _folder_tree_html(folders, current_folder=""):
-    """Build nested folder tree HTML from flat folder list."""
+def _folder_tree_html(folders_with_counts, current_folder=""):
+    """Build nested folder tree HTML with note counts and collapsible subtrees."""
     tree = {}
-    for folder in folders:
+    total_notes = 0
+
+    for item in folders_with_counts:
+        folder = item["folder"]
+        count = item["count"]
+        total_notes += count
         parts = folder.split("/")
         current = tree
         path = ""
-        for part in parts:
+        for i, part in enumerate(parts):
             path = f"{path}/{part}" if path else part
             if part not in current:
-                current[part] = {"path": path, "children": {}}
-            current = current[part]["children"]
+                current[part] = {"path": path, "children": {}, "count": 0}
+            current[part]["count"] += count
+            if i < len(parts) - 1:
+                current = current[part]["children"]
 
     def _render(node, depth=0):
         html = ""
         for name, data in sorted(node.items()):
-            style = f"padding-left:{16 + depth * 14}px;"
+            has_children = bool(data["children"])
+            toggle_id = f"ft-{data['path'].replace('/', '-')}"
+            if has_children:
+                chevron = f'<span class="folder-chevron" onclick="event.preventDefault();event.stopPropagation();toggleFolderSub(\'{toggle_id}\',this)">&#x25B6;</span>'
+            else:
+                chevron = '<span class="folder-chevron folder-chevron-empty"></span>'
+            style = f"padding-left:{12 + depth * 16}px;"
             active = ' folder-link-active' if data["path"] == current_folder else ''
-            html += f'<a href="/?folder={data["path"]}" class="sidebar-folder-link{active}" style="{style}">{name}</a>'
-            if data["children"]:
+            count_badge = f'<span class="folder-count">{data["count"]}</span>'
+            is_expanded = not current_folder or current_folder == data["path"] or current_folder.startswith(data["path"] + "/")
+            display = "" if is_expanded else ' style="display:none"'
+            html += f'<div class="folder-tree-item">'
+            html += f'<a href="/?folder={data["path"]}" class="sidebar-folder-link{active}" style="{style}">{chevron}{name}{count_badge}</a>'
+            if has_children:
+                html += f'<div class="folder-children" id="{toggle_id}"{display}>'
                 html += _render(data["children"], depth + 1)
+                html += '</div>'
+            html += '</div>'
         return html
 
-    return _render(tree)
+    all_active = ' folder-link-active' if not current_folder else ''
+    all_link = f'<a href="/" class="sidebar-folder-link{all_active}" style="padding-left:12px;"><span class="folder-chevron folder-chevron-empty"></span>All Notes<span class="folder-count">{total_notes}</span></a>'
+    return all_link + _render(tree)
 
 
-def sidebar_html(active="notes", tags=None, folders=None, current_folder="", backlinks=None):
+def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_folder="", backlinks=None):
     nav_items = {"notes": {"label": "Notes", "href": "/", "icon": "file-text"}, "graph": {"label": "Graph", "href": "/graph", "icon": "graph"}}
     notes_svg = '<path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'
     graph_svg = '<circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
@@ -282,7 +304,7 @@ def sidebar_html(active="notes", tags=None, folders=None, current_folder="", bac
         for t in tags:
             tag_links += f'<a href="/?tag={t["tag"]}" class="sidebar-tag">#{t["tag"]}</a>'
 
-    folder_links = _folder_tree_html(folders or [], current_folder) if folders else ""
+    folder_links = _folder_tree_html(folders_with_counts or [], current_folder) if folders_with_counts else ""
 
     backlink_items = ""
     if backlinks is not None:
@@ -332,9 +354,8 @@ def sidebar_html(active="notes", tags=None, folders=None, current_folder="", bac
 
 def render_page(title, body, active="notes", current_folder="", backlinks=None):
     tags = get_all_tags()
-    folders = get_all_folders_with_counts()
-    folder_names = sorted(set(f["folder"] for f in folders))
-    sb = sidebar_html(active, tags, folder_names, current_folder, backlinks)
+    folders_with_counts = get_all_folders_with_counts()
+    sb = sidebar_html(active, tags, folders_with_counts, current_folder, backlinks)
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -390,6 +411,13 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
         var chevron = document.getElementById('folderChevron');
         section.classList.toggle('collapsed');
         chevron.classList.toggle('rotated');
+    }}
+    function toggleFolderSub(id, el) {{
+        var children = document.getElementById(id);
+        if (children) {{
+            children.style.display = children.style.display === 'none' ? '' : 'none';
+            el.classList.toggle('folder-chevron-collapsed');
+        }}
     }}
     function toggleTagSection() {{
         var section = document.getElementById('tagSection');
@@ -572,7 +600,7 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
     body = f"""
     <div class="page-header">
         {page_title_html}
-        <a href="/edit/new" class="btn btn-primary">
+        <a href="/edit/new{f'?folder={folder}' if folder else ''}" class="btn btn-primary">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
                 <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
@@ -651,14 +679,24 @@ async def view_note(name: str):
 
 
 @app.get("/edit/{name:path}", response_class=HTMLResponse)
-async def edit_note(name: str):
+async def edit_note(name: str, folder: str = "", request: Request = None):
     note = read_note(name)
     content = note["content"] if note else f"# {name}\n\nStart writing...\n"
     is_new = " (new)" if not note else ""
+    folders = get_all_folders_with_counts()
+    current_folder = note["folder"] if note else (folder if folder else "")
+    folder_options = '<option value="">(root)</option>'
+    for f in folders:
+        selected = ' selected' if f["folder"] == current_folder else ''
+        folder_options += f'<option value="{f["folder"]}"{selected}>{f["folder"]}</option>'
     body = f"""
     <div class="editor-title" style="display:flex;align-items:center;gap:10px">
         <span>Edit: {name}{is_new}</span>
         <span class="editor-status" id="editorStatus"></span>
+    </div>
+    <div class="folder-selector-bar">
+        <label for="folderSelect">Folder:</label>
+        <select id="folderSelect">{folder_options}</select>
     </div>
     <div class="editor-layout">
         <div class="editor-pane">
@@ -1266,8 +1304,18 @@ async def edit_note(name: str):
     // ── Save ────────────────────────────────────────────────────
     function saveNote() {{
         let content = getMarkdown();
-        const name = '{name}' === 'new' ? prompt('Note name:') : '{name}';
+        const folder = document.getElementById('folderSelect').value;
+        let name;
+        if ('{name}' === 'new') {{
+            const baseName = prompt('Note name:');
+            if (!baseName) return;
+            name = folder ? folder + '/' + baseName : baseName;
+        }} else {{
+            const leaf = '{name}'.split('/').pop();
+            name = folder ? folder + '/' + leaf : leaf;
+        }}
         if (!name) return;
+        const oldName = '{name}';
         const btn = document.querySelector('.editor-actions .btn-primary');
         const originalText = btn.textContent;
         btn.textContent = 'Saving...';
@@ -1276,7 +1324,7 @@ async def edit_note(name: str):
         fetch('/api/note', {{
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify({{name, content}})
+            body: JSON.stringify({{name, content, old_name: oldName !== 'new' ? oldName : ''}})
         }}).then(function(r) {{
             if (!r.ok) return r.json().then(function(e) {{ throw new Error(e.error || 'Save failed'); }});
             return r.json();
@@ -1307,10 +1355,13 @@ async def edit_note(name: str):
     function autoSave() {{
         if (NOTE_NAME === 'new') return;
         const content = getMarkdown();
+        const folder = document.getElementById('folderSelect').value;
+        const leaf = NOTE_NAME.split('/').pop();
+        const name = folder ? folder + '/' + leaf : leaf;
         fetch('/api/note', {{
             method: 'POST',
             headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify({{name: NOTE_NAME, content}})
+            body: JSON.stringify({{name, content, old_name: NOTE_NAME !== name ? NOTE_NAME : ''}})
         }}).then(function(r) {{
             if (!r.ok) throw new Error('Auto-save HTTP ' + r.status);
             return r.json();
@@ -1593,8 +1644,14 @@ async def api_save_note(request: Request):
     data = await request.json()
     name = data.get("name", "").strip()
     content = data.get("content", "")
+    old_name = data.get("old_name", "").strip()
     if not name:
         return JSONResponse({"error": "Name required"}, status_code=400)
+
+    # If name changed, delete old note first
+    if old_name and old_name != name:
+        delete_note(old_name)
+        remove_note(old_name)
 
     note = write_note(name, content)
     folder = note.get("folder", "")
@@ -1609,6 +1666,35 @@ def api_delete_note(name: str):
     delete_note(name)
     remove_note(name)
     return JSONResponse({"ok": True})
+
+
+@app.get("/api/notes")
+def api_notes(folder: str = ""):
+    if folder:
+        notes = get_notes_by_folder(folder)
+    else:
+        notes = [{"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]} for n in list_notes()]
+    return JSONResponse(notes)
+
+
+@app.post("/api/note/{name:path}/move")
+async def api_move_note(name: str, request: Request):
+    data = await request.json()
+    new_folder = data.get("folder", "")
+    note = read_note(name)
+    if not note:
+        return JSONResponse({"error": "Note not found"}, status_code=404)
+    leaf = name.split("/")[-1]
+    new_name = f"{new_folder}/{leaf}" if new_folder else leaf
+    if new_name == name:
+        return JSONResponse({"name": name, "folder": new_folder})
+    write_note(new_name, note["content"])
+    delete_note(name)
+    remove_note(name)
+    tags = parse_tags(note["content"])
+    links = parse_wikilinks(note["content"])
+    index_note(new_name, note["content"], note["created_at"], note["updated_at"], tags, links, folder=new_folder)
+    return JSONResponse({"name": new_name, "folder": new_folder})
 
 
 # ── Image upload ──────────────────────────────────────────
