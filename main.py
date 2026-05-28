@@ -266,7 +266,7 @@ def _folder_tree_html(folders_with_counts, current_folder=""):
             has_children = bool(data["children"])
             toggle_id = f"ft-{data['path'].replace('/', '-')}"
             if has_children:
-                chevron = '<span class="folder-chevron" onclick="event.preventDefault();event.stopPropagation();toggleFolderSub(String.fromCharCode(39) + \'' + toggle_id + '\' + String.fromCharCode(39), this)">&#x25B6;</span>'
+                chevron = f'<span class="folder-chevron" onclick="event.preventDefault();event.stopPropagation();toggleFolderSub({chr(34)}{toggle_id}{chr(34)}, this)">&#x25B6;</span>'
             else:
                 chevron = '<span class="folder-chevron folder-chevron-empty"></span>'
             style = f"padding-left:{12 + depth * 16}px;"
