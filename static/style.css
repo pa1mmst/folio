@@ -193,7 +193,8 @@
 }
 
 .sidebar-folder-link {
-  display: block;
+  display: flex;
+  align-items: center;
   padding: 5px 10px;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
@@ -202,6 +203,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  gap: 2px;
 }
 
 .sidebar-folder-link:hover {
@@ -213,6 +215,109 @@
 .sidebar-folder-link.folder-link-active {
   background: var(--accent-muted);
   color: var(--accent);
+}
+
+.folder-tree-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.folder-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform 0.2s var(--easing);
+  flex-shrink: 0;
+  margin-right: 2px;
+  vertical-align: middle;
+  line-height: 1;
+  user-select: none;
+}
+
+.folder-chevron:hover {
+  color: var(--text-secondary);
+}
+
+.folder-chevron.folder-chevron-collapsed {
+  transform: rotate(-90deg);
+}
+
+.folder-chevron-empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.folder-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
+  padding: 0 6px;
+  min-width: 18px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  line-height: 1;
+}
+
+.sidebar-folder-link:hover .folder-count {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.sidebar-folder-link.folder-link-active .folder-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+.folder-children {
+  overflow: hidden;
+  transition: max-height 0.25s var(--easing);
+}
+
+/* ── Folder Selector Bar (editor) ──────────────────────── */
+.folder-selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.folder-selector-bar label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.folder-selector-bar select {
+  flex: 1;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s var(--easing);
+}
+
+.folder-selector-bar select:focus {
+  border-color: var(--accent);
 }
 
 /* ── Note Folder Badge ─────────────────────────────────── */

@@ -84,8 +84,8 @@ def search_notes(query, tag=None, folder=None):
         where_clauses.append("t.tag = ?")
         params.append(tag)
     if folder:
-        where_clauses.append("n.folder = ?")
-        params.append(folder)
+        where_clauses.append("(n.folder = ? OR n.folder LIKE ?)")
+        params.extend([folder, f"{folder}/%"])
     where_clauses.append("(n.content LIKE ? OR n.name LIKE ?)")
     params.extend([f"%{query}%", f"%{query}%"])
     where_sql = " AND ".join(where_clauses)
@@ -132,8 +132,8 @@ def get_all_note_names():
 def get_notes_by_folder(folder):
     conn = get_conn()
     rows = conn.execute(
-        "SELECT name, updated_at FROM notes WHERE folder = ? ORDER BY updated_at DESC",
-        (folder,),
+        "SELECT name, updated_at FROM notes WHERE folder = ? OR folder LIKE ? ORDER BY updated_at DESC",
+        (folder, f"{folder}/%"),
     ).fetchall()
     conn.close()
     result = []
