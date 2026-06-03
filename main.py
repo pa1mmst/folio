@@ -332,11 +332,6 @@ def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_fo
         </svg>
         Folders
       </button>
-      <button class="sidebar-add-btn" onclick="newFolder()" title="New Folder" aria-label="New Folder">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
     </div>
     <div class="sidebar-folders" id="folderSection">{folder_links}</div>
   </div>
@@ -626,18 +621,20 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
     body = f"""
     <div class="page-header">
         {page_title_html}
-        <a href="/edit/new{f'?folder={folder}' if folder else ''}" class="btn btn-primary">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
-                <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            New Note
-        </a>
-        <button onclick="newFolder()" class="btn btn-primary">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
-                <path d="M2 3h4l2 2h4a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            New Folder
-        </button>
+        <div class="page-header-actions">
+            <a href="/edit/new{f'?folder={folder}' if folder else ''}" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
+                    <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                New Note
+            </a>
+            <button onclick="newFolder()" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
+                    <path d="M2 3h4l2 2h4a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                New Folder
+            </button>
+        </div>
     </div>
     <div class="search-bar">
         <input type="text" name="q" placeholder="Search notes..." value="{q}" id="searchInput"
