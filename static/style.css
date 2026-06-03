@@ -826,6 +826,14 @@
   border-top: 1px solid var(--border);
 }
 
+.note-view-word-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
 /* ── Backlinks ──────────────────────────────────────────── */
 .backlinks-panel {
   margin-top: 28px;
