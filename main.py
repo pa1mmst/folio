@@ -630,6 +630,8 @@ async def view_note(name: str):
     tags = parse_tags(note["content"])
     tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags)
 
+    word_count = len(content.split()) if content.strip() else 0
+
     backlinks = get_backlinks(name)
 
     note_folder = note.get("folder", "")
@@ -662,6 +664,7 @@ async def view_note(name: str):
                 </div>
             </div>
             <button class="btn btn-danger" onclick="if(confirm('Delete?')){{showToast('Note deleted','success');fetch('/api/note/{name}',{{method:'DELETE'}}).then(function(){{setTimeout(function(){{window.location='/'}},300);}});}}">Delete</button>
+            <span class="note-view-word-count">{word_count} words</span>
         </div>
     <script>
     function toggleExport(e) {{
