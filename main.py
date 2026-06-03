@@ -2,7 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime, timezone
-from fastapi import FastAPI, Request, File, UploadFile
+from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -11,6 +11,7 @@ from database import (
     init_db, migrate_db, index_note, remove_note, search_notes,
     get_all_tags, get_all_links, get_all_note_names, get_backlinks,
     get_notes_by_folder, get_all_folders_with_counts, clear_all_notes,
+    add_attachment, get_attachments_for_note, remove_attachment,
 )
 from vault import (
     read_note, write_note, delete_note, list_notes, get_folder,
@@ -1270,6 +1271,7 @@ async def edit_note(name: str, folder: str = "", request: Request = None):
     async function uploadImage(file) {{
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('note_name', NOTE_NAME);
         const resp = await fetch('/api/upload', {{ method: 'POST', body: formData }});
         const data = await resp.json();
         if (data.url) {{
@@ -1443,7 +1445,7 @@ async def edit_note(name: str, folder: str = "", request: Request = None):
     }}
 
     function loadAttachments() {{
-        fetch('/api/attachments')
+        fetch('/api/attachments?note=' + encodeURIComponent(NOTE_NAME))
             .then(function(r) {{ return r.json(); }})
             .then(function(files) {{
                 attachmentsCount.textContent = files.length;
@@ -1749,7 +1751,7 @@ MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
 
 @app.post("/api/upload")
-async def api_upload(file: UploadFile = File(...)):
+async def api_upload(file: UploadFile = File(...), note_name: str = Form("")):
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         return JSONResponse(
@@ -1769,15 +1771,27 @@ async def api_upload(file: UploadFile = File(...)):
     with open(filepath, "wb") as f:
         f.write(contents)
 
+    if note_name:
+        add_attachment(note_name, filename, file.filename or filename)
+
     return JSONResponse({"url": f"/static/uploads/{filename}"})
 
 
 @app.get("/api/attachments")
-async def api_attachments():
+async def api_attachments(note: str = ""):
     upload_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
+
+    if note:
+        records = get_attachments_for_note(note)
+        filenames = {r["filename"] for r in records}
+    else:
+        filenames = None
+
     files = []
     for fname in sorted(os.listdir(upload_dir), reverse=True):
+        if filenames is not None and fname not in filenames:
+            continue
         fpath = os.path.join(upload_dir, fname)
         if os.path.isfile(fpath):
             ext = os.path.splitext(fname)[1].lower()
@@ -1802,6 +1816,7 @@ async def api_delete_upload(filename: str):
     if not os.path.isfile(fpath):
         return JSONResponse({"error": "File not found"}, status_code=404)
     os.remove(fpath)
+    remove_attachment(filename)
     return JSONResponse({"ok": True})
 
 
