@@ -15,6 +15,7 @@ from database import (
 from vault import (
     read_note, write_note, delete_note, list_notes, get_folder,
     parse_tags, parse_wikilinks, strip_frontmatter, note_exists,
+    create_folder,
 )
 
 try:
@@ -323,12 +324,19 @@ def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_fo
   </div>
   <nav class="sidebar-nav">{nav_links}</nav>
   <div class="sidebar-section">
-    <button class="sidebar-collapse-btn" onclick="toggleFolderSection()" id="folderToggle">
-      <svg class="chevron" id="folderChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Folders
-    </button>
+    <div class="sidebar-section-header">
+      <button class="sidebar-collapse-btn" onclick="toggleFolderSection()" id="folderToggle">
+        <svg class="chevron" id="folderChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Folders
+      </button>
+      <button class="sidebar-add-btn" onclick="newFolder()" title="New Folder" aria-label="New Folder">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
     <div class="sidebar-folders" id="folderSection">{folder_links}</div>
   </div>
   <div class="sidebar-section">
@@ -430,6 +438,23 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
         var chevron = document.getElementById('backlinkChevron');
         section.classList.toggle('collapsed');
         chevron.classList.toggle('rotated');
+    }}
+    function newFolder() {{
+        var name = prompt('Folder name:');
+        if (!name) return;
+        fetch('/api/folder', {{
+            method: 'POST',
+            headers: {{'Content-Type': 'application/json'}},
+            body: JSON.stringify({{folder: name}})
+        }}).then(function(r) {{
+            if (!r.ok) return r.json().then(function(e) {{ throw new Error(e.error || 'Failed to create folder'); }});
+            return r.json();
+        }}).then(function() {{
+            showToast('Folder created', 'success');
+            window.location.reload();
+        }}).catch(function(e) {{
+            showToast(e.message || 'Failed to create folder', 'error');
+        }});
     }}
     function showToast(message, type) {{
         var container = document.getElementById('toastContainer');
@@ -1669,6 +1694,23 @@ def api_delete_note(name: str):
     delete_note(name)
     remove_note(name)
     return JSONResponse({"ok": True})
+
+
+@app.post("/api/folder")
+async def api_create_folder(request: Request):
+    data = await request.json()
+    folder_path = data.get("folder", "").strip().rstrip("/")
+    if not folder_path:
+        return JSONResponse({"error": "Folder name required"}, status_code=400)
+    if "/" in folder_path:
+        parts = folder_path.split("/")
+        for p in parts:
+            if not p or p in (".", ".."):
+                return JSONResponse({"error": "Invalid folder name"}, status_code=400)
+    elif folder_path in (".", ".."):
+        return JSONResponse({"error": "Invalid folder name"}, status_code=400)
+    create_folder(folder_path)
+    return JSONResponse({"folder": folder_path})
 
 
 @app.get("/api/notes")

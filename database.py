@@ -154,7 +154,7 @@ def clear_all_notes():
 
 
 def get_all_folders_with_counts():
-    """Return folders that actually exist on disk, with note counts from DB."""
+    """Return all folders (on disk) with note counts from DB."""
     folders = vault_folders()
     if not folders:
         return []
@@ -165,4 +165,5 @@ def get_all_folders_with_counts():
         folders,
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    counts = {r["folder"]: r["count"] for r in rows}
+    return [{"folder": f, "count": counts.get(f, 0)} for f in folders]
