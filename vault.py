@@ -103,9 +103,18 @@ def list_notes():
     return notes
 
 
+def create_folder(folder_path):
+    """Create a new folder directory in the vault."""
+    vd = vault_dir()
+    full_path = os.path.join(vd, folder_path)
+    os.makedirs(full_path, exist_ok=True)
+    return folder_path
+
+
 def get_all_folders():
     folders = set()
     vd = vault_dir()
+    ensure_vault_dir()
     for root, dirs, files in os.walk(vd):
         for f in files:
             if f.endswith(".md"):
@@ -114,6 +123,9 @@ def get_all_folders():
                 folder = get_folder(name)
                 if folder:
                     folders.add(folder)
+        for d in dirs:
+            rel_dir = os.path.relpath(os.path.join(root, d), vd)
+            folders.add(rel_dir)
     return sorted(folders)
 
 

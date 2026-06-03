@@ -366,6 +366,37 @@
   margin-bottom: 4px;
 }
 
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sidebar-section-header .sidebar-collapse-btn {
+  flex: 1;
+}
+
+.sidebar-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s var(--easing), color 0.15s;
+}
+
+.sidebar-add-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .sidebar-collapse-btn {
   display: flex;
   align-items: center;

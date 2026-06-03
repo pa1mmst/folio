@@ -160,17 +160,30 @@ class TestFolders:
         assert r.status_code == 200
         assert "note-a" not in r.text, "Stale note should not appear in folder filter"
 
-    def test_folder_tree_excludes_empty_folders(self, client):
-        """Folders whose notes have been removed from disk should not appear
+    def test_folder_tree_shows_folder_on_disk(self, client):
+        """Folders whose directory exists on disk should appear in the
+        sidebar folder tree even when empty."""
+        vault = os.environ.get("VAULT_DIR", "/tmp/vault-test-api")
+        fdir = os.path.join(vault, "on-disk-folder")
+        os.makedirs(fdir, exist_ok=True)
+        r = client.get("/")
+        assert r.status_code == 200
+        assert "on-disk-folder" in r.text, "Folder on disk should appear in sidebar tree"
+
+    def test_folder_tree_excludes_removed_folders(self, client):
+        """Folders whose directory has been removed from disk should not appear
         in the sidebar folder tree."""
         client.post("/api/note", json={"name": "ghost-folder/n1", "content": "ghost"})
         vault = os.environ.get("VAULT_DIR", "/tmp/vault-test-api")
         fpath = os.path.join(vault, "ghost-folder", "n1.md")
         if os.path.exists(fpath):
             os.remove(fpath)
+        fdir = os.path.join(vault, "ghost-folder")
+        if os.path.isdir(fdir):
+            os.rmdir(fdir)
         r = client.get("/")
         assert r.status_code == 200
-        assert "ghost-folder" not in r.text, "Empty folder should not appear in sidebar tree"
+        assert "ghost-folder" not in r.text, "Removed folder should not appear in sidebar tree"
 
 
 class TestBacklinks:
