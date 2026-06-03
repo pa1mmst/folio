@@ -417,6 +417,35 @@ class TestAttachments:
         assert r.status_code == 400
         assert "not allowed" in r.text.lower()
 
+    def test_attachments_filtered_by_note(self, client):
+        r = client.post("/api/upload", files={"file": ("note-a.png", b"note-a-content", "image/png")}, data={"note_name": "test-note-a"})
+        assert r.status_code == 200
+        url_a = r.json()["url"]
+        filename_a = url_a.split("/")[-1]
+        r = client.post("/api/upload", files={"file": ("note-b.png", b"note-b-content", "image/png")}, data={"note_name": "test-note-b"})
+        assert r.status_code == 200
+        url_b = r.json()["url"]
+        filename_b = url_b.split("/")[-1]
+
+        r = client.get("/api/attachments?note=test-note-a")
+        assert r.status_code == 200
+        data = r.json()
+        assert any(f["filename"] == filename_a for f in data)
+        assert not any(f["filename"] == filename_b for f in data)
+
+        r = client.get("/api/attachments?note=test-note-b")
+        assert r.status_code == 200
+        data = r.json()
+        assert any(f["filename"] == filename_b for f in data)
+        assert not any(f["filename"] == filename_a for f in data)
+
+    def test_attachments_empty_for_note_without_uploads(self, client):
+        r = client.post("/api/upload", files={"file": ("other.png", b"content", "image/png")}, data={"note_name": "some-note"})
+        assert r.status_code == 200
+        r = client.get("/api/attachments?note=unrelated-note")
+        assert r.status_code == 200
+        assert r.json() == []
+
     def test_editor_has_attachments_panel(self, client):
         r = client.get("/edit/test-editor")
         assert r.status_code == 200

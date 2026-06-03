@@ -1,5 +1,6 @@
 import sqlite3
 import os
+from datetime import datetime, timezone
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "vault-index.db")
 
@@ -36,9 +37,17 @@ def init_db():
             target_note TEXT NOT NULL,
             FOREIGN KEY(source_note) REFERENCES notes(name) ON DELETE CASCADE
         );
+        CREATE TABLE IF NOT EXISTS attachments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_name TEXT NOT NULL,
+            filename TEXT NOT NULL UNIQUE,
+            original_name TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT ''
+        );
         CREATE INDEX IF NOT EXISTS idx_tags_note ON tags(note_name);
         CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
         CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_note);
+        CREATE INDEX IF NOT EXISTS idx_attachments_note ON attachments(note_name);
     """)
     conn.commit()
     conn.close()
@@ -144,11 +153,40 @@ def get_notes_by_folder(folder):
 
 
 def clear_all_notes():
-    """Delete all notes, tags, and links from the index."""
+    """Delete all notes, tags, links, and attachments from the index."""
     conn = get_conn()
     conn.execute("DELETE FROM tags")
     conn.execute("DELETE FROM links")
+    conn.execute("DELETE FROM attachments")
     conn.execute("DELETE FROM notes")
+    conn.commit()
+    conn.close()
+
+
+def add_attachment(note_name, filename, original_name):
+    conn = get_conn()
+    created_at = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO attachments (note_name, filename, original_name, created_at) VALUES (?, ?, ?, ?)",
+        (note_name, filename, original_name, created_at),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_attachments_for_note(note_name):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT filename, original_name, created_at FROM attachments WHERE note_name = ? ORDER BY created_at DESC",
+        (note_name,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def remove_attachment(filename):
+    conn = get_conn()
+    conn.execute("DELETE FROM attachments WHERE filename = ?", (filename,))
     conn.commit()
     conn.close()
 
