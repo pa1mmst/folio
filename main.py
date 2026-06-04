@@ -184,27 +184,30 @@ def inline(text):
 # ── HTML template ─────────────────────────────────────────────
 BASE_STYLE = """
 :root {
-  --bg-primary: #f8f9fa;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f3f5;
-  --bg-hover: #f0f1f3;
-  --bg-active: #e9ecef;
-  --text-primary: #1a1a2e;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --text-accent: #e07a5f;
-  --accent: #e07a5f;
-  --accent-hover: #c96a4f;
-  --accent-muted: rgba(224, 122, 95, 0.1);
-  --accent-glow: rgba(224, 122, 95, 0.18);
-  --border: #e5e7eb;
-  --border-muted: #f0f1f3;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --bg-page: #0b0a09;
+  --bg-panel: #141210;
+  --bg-primary: #141210;
+  --bg-secondary: #1a1815;
+  --bg-tertiary: #1f1c18;
+  --bg-hover: #2a2620;
+  --bg-active: #2a2620;
+  --text-primary: #f5f3f0;
+  --text-secondary: #b8b0a8;
+  --text-muted: #8a8f98;
+  --text-accent: #5e6ad2;
+  --accent: #5e6ad2;
+  --accent-hover: #6b7ddb;
+  --accent-muted: rgba(94, 106, 210, 0.08);
+  --accent-glow: rgba(94, 106, 210, 0.18);
+  --border: rgba(255,255,255,0.08);
+  --border-muted: rgba(255,255,255,0.05);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-full: 9999px;
   --easing: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --font-display: 'Instrument Serif', serif;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   --sidebar-width: 260px;
@@ -214,27 +217,31 @@ BASE_STYLE = """
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
-  --space-6: 1.5rem;
-  --space-8: 2rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
   --duration-fast: 150ms;
   --duration-normal: 250ms;
-  --font-size-xs: 0.6875rem;
-  --font-size-sm: 0.813rem;
-  --font-size-base: 0.875rem;
-  --font-size-md: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.375rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-md: 1.25rem;
+  --font-size-lg: 1.5rem;
+  --font-size-xl: 2rem;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: var(--font-sans);
+  font-feature-settings: "kern", "liga", "calt";
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--font-size-base);
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   min-height: 100vh;
 }
 a { color: var(--accent); text-decoration: none; transition: color 0.2s var(--easing); }
@@ -368,7 +375,7 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
     <title>{title} — folio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>{BASE_STYLE}</style>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.0/styles/github.min.css">

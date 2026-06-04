@@ -1,5 +1,11 @@
 /* ── Folio Design System v2 — Obsidian-inspired ──────────── */
 
+/* ── Base / Reset ─────────────────────────────────────────── */
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* ── App Layout ─────────────────────────────────────────── */
 .app-layout {
   display: flex;
@@ -12,8 +18,13 @@
   flex: 1;
   margin-left: var(--sidebar-width);
   min-width: 0;
+  max-width: 1000px;
   padding: 16px 32px 32px;
   transition: margin-left 0.3s var(--easing);
+}
+
+.main-content > * {
+  max-width: 740px;
 }
 
 /* ── Sidebar Overlay (mobile) ───────────────────────────── */
@@ -83,6 +94,11 @@
   transition: transform 0.3s var(--easing);
 }
 
+.sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
 .sidebar::-webkit-scrollbar {
   width: 4px;
 }
@@ -102,8 +118,9 @@
 }
 
 .sidebar-brand {
-  font-size: 18px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
@@ -155,6 +172,11 @@
 .sidebar-link:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.sidebar-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sidebar-link.active {
@@ -451,7 +473,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 24px;
   gap: 12px;
   padding: 8px 0 12px;
 }
@@ -463,9 +485,11 @@
 }
 
 .page-title {
+  font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.1;
   color: var(--text-primary);
 }
 
@@ -498,6 +522,11 @@
 
 .btn:active {
   transform: translateY(0);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn-primary {
@@ -608,7 +637,7 @@
 .note-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
+  gap: 20px;
   padding: 4px 0 24px;
 }
 
@@ -628,11 +657,12 @@
 
 .note-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 
 .note-card-header {
-  padding: 16px 16px 0;
+  padding: 20px 20px 0;
 }
 
 .note-card-title {
@@ -640,6 +670,7 @@
   font-weight: 600;
   margin: 0;
   line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .note-card-title a {
@@ -655,8 +686,8 @@
 .note-card-preview {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  line-height: 1.55;
-  margin: 8px 16px 0;
+  line-height: 1.6;
+  margin: 8px 20px 0;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -670,7 +701,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 16px 12px;
+  padding: 10px 20px 12px;
   margin-top: 10px;
 }
 
@@ -704,8 +735,8 @@
 }
 
 .tag:hover {
-  background: rgba(224, 122, 95, 0.18);
-  border-color: rgba(224, 122, 95, 0.25);
+  background: var(--accent-muted);
+  border-color: var(--accent);
   text-decoration: none;
 }
 
@@ -730,12 +761,13 @@
 }
 
 .note-view h2 {
+  font-family: var(--font-display);
   font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   margin-bottom: 8px;
   color: var(--text-primary);
-  line-height: 1.3;
+  line-height: 1.1;
 }
 
 .note-view .tags {
@@ -752,16 +784,16 @@
 .note-view-content h1,
 .note-view-content h2,
 .note-view-content h3 {
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 20px 0 8px;
-  line-height: 1.3;
+  margin: 24px 0 8px;
+  line-height: 1.1;
 }
 
-.note-view-content h1 { font-size: 1.5rem; }
-.note-view-content h2 { font-size: 1.125rem; }
-.note-view-content h3 { font-size: 1rem; }
+.note-view-content h1 { font-size: var(--font-size-xl); letter-spacing: -0.03em; }
+.note-view-content h2 { font-size: var(--font-size-lg); letter-spacing: -0.02em; }
+.note-view-content h3 { font-size: var(--font-size-md); letter-spacing: -0.01em; }
 
 .note-view-content p {
   margin: 10px 0;
@@ -825,7 +857,7 @@
 .note-view-content .wikilink {
   color: var(--accent);
   font-weight: 500;
-  border-bottom: 1px dashed rgba(167, 139, 250, 0.3);
+  border-bottom: 1px dashed var(--accent-muted);
   transition: border-color 0.15s;
 }
 
@@ -881,7 +913,7 @@
 }
 
 .backlinks-panel .backlink-item:hover {
-  background: var(--bg-hover);
+  background: var(--accent-muted);
   text-decoration: none;
 }
 
@@ -997,17 +1029,17 @@
 .wysiwyg-editor h2,
 .wysiwyg-editor h3,
 .wysiwyg-editor h4 {
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 14px 0 6px;
-  line-height: 1.3;
+  margin: 16px 0 6px;
+  line-height: 1.1;
 }
 
-.wysiwyg-editor h1 { font-size: 1.5rem; }
-.wysiwyg-editor h2 { font-size: 1.125rem; }
-.wysiwyg-editor h3 { font-size: 1rem; }
-.wysiwyg-editor h4 { font-size: 0.938rem; }
+.wysiwyg-editor h1 { font-size: var(--font-size-xl); letter-spacing: -0.03em; }
+.wysiwyg-editor h2 { font-size: var(--font-size-lg); letter-spacing: -0.02em; }
+.wysiwyg-editor h3 { font-size: var(--font-size-md); letter-spacing: -0.01em; }
+.wysiwyg-editor h4 { font-size: var(--font-size-base); letter-spacing: 0; }
 
 .wysiwyg-editor p {
   margin: 4px 0;
@@ -1133,16 +1165,16 @@
 .preview-pane h1,
 .preview-pane h2,
 .preview-pane h3 {
+  font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.01em;
   color: var(--text-primary);
-  margin: 14px 0 6px;
-  line-height: 1.3;
+  margin: 16px 0 6px;
+  line-height: 1.1;
 }
 
-.preview-pane h1 { font-size: 1.5rem; }
-.preview-pane h2 { font-size: 1.125rem; }
-.preview-pane h3 { font-size: 1rem; }
+.preview-pane h1 { font-size: var(--font-size-xl); letter-spacing: -0.03em; }
+.preview-pane h2 { font-size: var(--font-size-lg); letter-spacing: -0.02em; }
+.preview-pane h3 { font-size: var(--font-size-md); letter-spacing: -0.01em; }
 
 .preview-pane p {
   margin: 6px 0;
@@ -1205,7 +1237,7 @@
 .preview-pane .wikilink {
   color: var(--accent);
   font-weight: 500;
-  border-bottom: 1px dashed rgba(167, 139, 250, 0.3);
+  border-bottom: 1px dashed var(--accent-muted);
 }
 
 .editor-actions {
@@ -1448,7 +1480,7 @@
 }
 
 .sidebar-backlink-item:hover {
-  background: var(--bg-hover);
+  background: var(--accent-muted);
   color: var(--accent-hover);
   text-decoration: none;
 }
@@ -1849,6 +1881,7 @@
   }
 
   .page-title {
+    font-family: var(--font-display);
     font-size: var(--font-size-lg);
   }
 
