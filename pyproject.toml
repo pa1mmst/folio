@@ -1,0 +1,31 @@
+[project]
+name = "folio"
+version = "0.1.0"
+description = "Personal note-taking app"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pytest",
+    "httpx",
+    "python-multipart",
+    "weasyprint",
+]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+branch = "main"
+changelog_file = "CHANGELOG.md"
+commit_message = "chore(release): {version} [skip ci]"
+version_source = "tag"
+commit_version_number = true
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+allowed_tags = ["feat", "fix", "perf", "chore", "docs", "refactor", "test", "style", "build", "ci"]
+default_bump_level = 0
+
+[tool.semantic_release.branches.master]
+match = "master"
+prerelease = false
