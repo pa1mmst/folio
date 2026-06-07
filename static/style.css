@@ -763,7 +763,7 @@
 .note-card-drag-handle {
   position: absolute;
   top: 6px;
-  right: 6px;
+  left: 6px;
   width: 22px;
   height: 22px;
   border: none;
@@ -825,6 +825,13 @@
   background: var(--accent);
   opacity: 0.06;
   pointer-events: none;
+}
+
+/* ── Folder Drop Target ─────────────────────────────────── */
+.folder-drop-target {
+  background-color: rgba(var(--accent-rgb), 0.1);
+  border-left: 2px solid var(--accent);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 /* ── Touch Drag Clone ───────────────────────────────────── */
