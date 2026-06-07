@@ -253,52 +253,7 @@ a:hover { color: var(--accent-hover); }
 """
 
 
-def _folder_tree_html(folders_with_counts, current_folder=""):
-    """Build nested folder tree HTML with note counts and collapsible subtrees."""
-    tree = {}
-    total_notes = 0
 
-    for item in folders_with_counts:
-        folder = item["folder"]
-        count = item["count"]
-        total_notes += count
-        parts = folder.split("/")
-        current = tree
-        path = ""
-        for i, part in enumerate(parts):
-            path = f"{path}/{part}" if path else part
-            if part not in current:
-                current[part] = {"path": path, "children": {}, "count": 0}
-            current[part]["count"] += count
-            if i < len(parts) - 1:
-                current = current[part]["children"]
-
-    def _render(node, depth=0):
-        html = ""
-        for name, data in sorted(node.items()):
-            has_children = bool(data["children"])
-            toggle_id = f"ft-{data['path'].replace('/', '-')}"
-            if has_children:
-                chevron = f'<span class="folder-chevron" onclick="event.preventDefault();event.stopPropagation();toggleFolderSub({chr(39)}{toggle_id}{chr(39)}, this)">&#x25B6;</span>'
-            else:
-                chevron = '<span class="folder-chevron folder-chevron-empty"></span>'
-            style = f"padding-left:{12 + depth * 16}px;"
-            active = ' folder-link-active' if data["path"] == current_folder else ''
-            count_badge = f'<span class="folder-count">{data["count"]}</span>'
-            is_expanded = not current_folder or current_folder == data["path"] or current_folder.startswith(data["path"] + "/")
-            display = "" if is_expanded else ' style="display:none"'
-            html += f'<div class="folder-tree-item">'
-            html += f'<a href="/?folder={data["path"]}" class="sidebar-folder-link{active}" style="{style}">{chevron}{name}{count_badge}</a>'
-            if has_children:
-                html += f'<div class="folder-children" id="{toggle_id}"{display}>'
-                html += _render(data["children"], depth + 1)
-                html += '</div>'
-            html += '</div>'
-        return html
-
-    all_active = ' folder-link-active' if not current_folder else ''
-    all_link = f'<a href="/" class="sidebar-folder-link{all_active}" style="padding-left:12px;"><span class="folder-chevron folder-chevron-empty"></span>All Notes<span class="folder-count">{total_notes}</span></a>'
-    return all_link + _render(tree)
 
 
 def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_folder="", backlinks=None):
@@ -317,7 +272,7 @@ def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_fo
         for t in tags:
             tag_links += f'<a href="/?tag={t["tag"]}" class="sidebar-tag">#{t["tag"]}</a>'
 
-    folder_links = _folder_tree_html(folders_with_counts or [], current_folder) if folders_with_counts else ""
+    skeleton = '<div class="folder-loading">Loading folders...</div>'
 
     backlink_items = ""
     if backlinks is not None:
@@ -343,8 +298,9 @@ def sidebar_html(active="notes", tags=None, folders_with_counts=None, current_fo
         </svg>
         Folders
       </button>
+      <button class="sidebar-add-folder-btn" onclick="showCreateInput('')" title="New folder" aria-label="New folder">+</button>
     </div>
-    <div class="sidebar-folders" id="folderSection">{folder_links}</div>
+    <div class="sidebar-folders" id="folderSection">{skeleton}</div>
   </div>
   <div class="sidebar-section">
     <button class="sidebar-collapse-btn" onclick="toggleTagSection()" id="tagToggle">
@@ -424,58 +380,41 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
     function toggleFolderSection() {{
         var section = document.getElementById('folderSection');
         var chevron = document.getElementById('folderChevron');
-        section.classList.toggle('collapsed');
-        chevron.classList.toggle('rotated');
-    }}
-    function toggleFolderSub(id, el) {{
-        var children = document.getElementById(id);
-        if (children) {{
-            children.style.display = children.style.display === 'none' ? '' : 'none';
-            el.classList.toggle('folder-chevron-collapsed');
+        if (section) {{
+            section.classList.toggle('collapsed');
+            if (chevron) chevron.classList.toggle('rotated');
         }}
     }}
     function toggleTagSection() {{
         var section = document.getElementById('tagSection');
         var chevron = document.getElementById('tagChevron');
-        section.classList.toggle('collapsed');
-        chevron.classList.toggle('rotated');
+        if (section) {{
+            section.classList.toggle('collapsed');
+            if (chevron) chevron.classList.toggle('rotated');
+        }}
     }}
     function toggleBacklinkSection() {{
         var section = document.getElementById('backlinkSection');
         var chevron = document.getElementById('backlinkChevron');
-        section.classList.toggle('collapsed');
-        chevron.classList.toggle('rotated');
+        if (section) {{
+            section.classList.toggle('collapsed');
+            if (chevron) chevron.classList.toggle('rotated');
+        }}
     }}
-    function newFolder() {{
-        var name = prompt('Folder name:');
-        if (!name) return;
-        fetch('/api/folder', {{
-            method: 'POST',
-            headers: {{'Content-Type': 'application/json'}},
-            body: JSON.stringify({{folder: name}})
-        }}).then(function(r) {{
-            if (!r.ok) return r.json().then(function(e) {{ throw new Error(e.error || 'Failed to create folder'); }});
-            return r.json();
-        }}).then(function() {{
-            showToast('Folder created', 'success');
-            window.location.reload();
-        }}).catch(function(e) {{
-            showToast(e.message || 'Failed to create folder', 'error');
-        }});
+    function toggleHotkeys() {{
+        document.getElementById('hotkeysModal').classList.toggle('open');
     }}
     function showToast(message, type) {{
         var container = document.getElementById('toastContainer');
+        if (!container) return;
         var toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(function() {{
             toast.classList.add('toast-exit');
-            setTimeout(function() {{ toast.remove(); }}, 300);
-        }}, 4000);
-    }}
-    function toggleHotkeys() {{
-        document.getElementById('hotkeysModal').classList.toggle('open');
+            setTimeout(function() {{ if (toast.parentNode) toast.remove(); }}, 300);
+        }}, 3000);
     }}
     document.addEventListener('keydown', function(e) {{
         if (e.key === 'Escape') {{
@@ -501,6 +440,968 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
             }}
         }}
     }});
+    hljs.highlightAll();
+
+    (function() {{
+      'use strict';
+      var VALID_NAME_RE = /^[a-zA-Z\u0430-\u044F\u0410-\u042F\u0451\u04010-9\s\-_]+$/;
+      var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      var folderSection = document.getElementById('folderSection');
+      if (!folderSection) return;
+
+      var currentFolder = '';
+      var folders = [];
+      var focusedIdx = -1;
+      var folderItemEls = [];
+      var contextMenu = null;
+      var contextOverlay = null;
+      var inlineEl = null;
+
+      var urlParams = new URLSearchParams(window.location.search);
+      currentFolder = urlParams.get('folder') || '';
+
+      folderSection.setAttribute('role', 'tree');
+      folderSection.setAttribute('aria-label', 'Folders');
+
+      function createContextMenu() {{
+        contextOverlay = document.createElement('div');
+        contextOverlay.className = 'folder-context-overlay';
+        document.body.appendChild(contextOverlay);
+
+        contextMenu = document.createElement('div');
+        contextMenu.className = 'folder-context-menu';
+        contextMenu.id = 'folderContextMenu';
+        contextMenu.setAttribute('role', 'menu');
+        contextMenu.innerHTML =
+          '<button class="folder-context-menu-item" data-action="rename" role="menuitem">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M10.5 1.5a1.41 1.41 0 012 2L4.5 11.5 1 13l1.5-3.5 8-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            'Rename' +
+          '</button>' +
+          '<button class="folder-context-menu-item" data-action="new-subfolder" role="menuitem">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h4l2 2h4a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1V4a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            'New subfolder' +
+          '</button>' +
+          '<div class="folder-context-menu-sep"></div>' +
+          '<button class="folder-context-menu-item folder-context-menu-item-danger" data-action="delete" role="menuitem">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M5 4V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V4M11 4v7.5a1 1 0 01-1 1H4a1 1 0 01-1-1V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            'Delete' +
+          '</button>';
+
+        document.body.appendChild(contextMenu);
+
+        contextMenu.addEventListener('click', function(e) {{
+          var item = e.target.closest('.folder-context-menu-item');
+          if (!item) return;
+          var action = item.dataset.action;
+          var path = contextMenu.dataset.path;
+          hideContextMenu();
+          if (action === 'rename') showRenameInput(path);
+          else if (action === 'new-subfolder') showCreateInput(path);
+          else if (action === 'delete') confirmAndDelete(path);
+        }});
+
+        contextOverlay.addEventListener('click', hideContextMenu);
+
+        document.addEventListener('keydown', function(e) {{
+          if (e.key === 'Escape' && contextMenu.classList.contains('open')) {{
+            hideContextMenu();
+          }}
+        }});
+      }}
+
+      function showContextMenu(e, path) {{
+        e.preventDefault();
+        e.stopPropagation();
+        hideContextMenu();
+        contextMenu.dataset.path = path;
+
+        if (isTouchDevice) {{
+          contextOverlay.classList.add('open');
+          contextMenu.classList.add('open');
+        }} else {{
+          var x = Math.min(e.clientX, window.innerWidth - contextMenu.offsetWidth - 8);
+          var y = Math.min(e.clientY, window.innerHeight - contextMenu.offsetHeight - 8);
+          contextMenu.style.left = Math.max(0, x) + 'px';
+          contextMenu.style.top = Math.max(0, y) + 'px';
+          contextMenu.classList.add('open');
+        }}
+        contextMenu.focus();
+      }}
+
+      function hideContextMenu() {{
+        contextMenu.classList.remove('open');
+        contextOverlay.classList.remove('open');
+      }}
+
+      async function loadFolders() {{
+        folderSection.innerHTML = '<div class="folder-loading">Loading folders...</div>';
+        try {{
+          var res = await fetch('/api/folders');
+          if (!res.ok) throw new Error('Failed to load folders');
+          folders = await res.json();
+          renderTree();
+        }} catch (e) {{
+          folderSection.innerHTML = '<div class="folder-loading" style="color:#f87171">Failed to load folders</div>';
+        }}
+      }}
+
+      function buildTree(folderList) {{
+        var root = {{ name: '', path: '', children: {{}}, count: 0 }};
+        var sorted = folderList.slice().sort(function(a, b) {{ return a.path.length - b.path.length; }});
+        for (var i = 0; i < sorted.length; i++) {{
+          var f = sorted[i];
+          var parts = f.path.split('/');
+          var current = root;
+          var pathAcc = '';
+          for (var j = 0; j < parts.length; j++) {{
+            var part = parts[j];
+            pathAcc = pathAcc ? pathAcc + '/' + part : part;
+            if (!current.children[part]) {{
+              current.children[part] = {{ name: part, path: pathAcc, children: {{}}, count: 0 }};
+            }}
+            current.children[part].count += f.count || 0;
+            current = current.children[part];
+          }}
+        }}
+        return root;
+      }}
+
+      function computeTotalCount(folderList) {{
+        var total = 0;
+        for (var i = 0; i < folderList.length; i++) {{
+          total += folderList[i].count || 0;
+        }}
+        return total;
+      }}
+
+      function isFolderExpanded(path) {{
+        if (!currentFolder) return true;
+        if (currentFolder === path) return true;
+        return currentFolder.indexOf(path + '/') === 0;
+      }}
+
+      function renderTree() {{
+        folderItemEls = [];
+        var totalCount = computeTotalCount(folders);
+        var tree = buildTree(folders);
+        var activeClass = currentFolder === '' ? ' folder-link-active' : '';
+        var html =
+          '<a href="/" class="sidebar-folder-link' + activeClass + '" style="padding-left:12px;" role="treeitem" tabindex="0" data-path="">' +
+            '<span class="folder-chevron folder-chevron-empty"></span>' +
+            'All Notes' +
+            '<span class="folder-count">' + totalCount + '</span>' +
+          '</a>';
+        html += renderChildren(tree, 0);
+        folderSection.innerHTML = html;
+        addEventListeners();
+
+        folderSection.querySelector('.sidebar-folder-link[href="/"]').addEventListener('click', function() {{
+          window.location.href = '/';
+        }});
+      }}
+
+      function renderChildren(node, depth) {{
+        var html = '';
+        var keys = Object.keys(node.children).sort();
+        for (var i = 0; i < keys.length; i++) {{
+          var name = keys[i];
+          var data = node.children[name];
+          html += renderNode(name, data, depth);
+        }}
+        return html;
+      }}
+
+      function renderNode(name, data, depth) {{
+        var hasChildren = Object.keys(data.children).length > 0;
+        var toggleId = 'ft-' + data.path.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-]/g, '_');
+        var expanded = isFolderExpanded(data.path);
+        var active = data.path === currentFolder ? ' folder-link-active' : '';
+        var chevron;
+        if (hasChildren) {{
+          chevron = '<span class="folder-chevron' + (expanded ? '' : ' folder-chevron-collapsed') + '">&#x25B6;</span>';
+        }} else {{
+          chevron = '<span class="folder-chevron folder-chevron-empty"></span>';
+        }}
+        var pdLeft = 12 + (depth + 1) * 16;
+        var countBadge = '<span class="folder-count">' + data.count + '</span>';
+        var displayStyle = expanded ? '' : ' style="display:none"';
+        var ariaExpanded = hasChildren ? ' aria-expanded="' + expanded + '"' : '';
+        var itemId = 'fti-' + data.path.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-]/g, '_');
+
+        html = '';
+        html += '<div class="folder-tree-item" role="treeitem"' + ariaExpanded + ' id="' + itemId + '">';
+        html += '<a href="/?folder=' + encodeURIComponent(data.path) + '" class="sidebar-folder-link' + active + '" style="padding-left:' + pdLeft + 'px;" data-path="' + data.path + '">' + chevron + escapeHtml(name) + countBadge + '</a>';
+        if (hasChildren) {{
+          html += '<div class="folder-children" id="' + toggleId + '" role="group"' + displayStyle + '>';
+          html += renderChildren(data, depth + 1);
+          html += '</div>';
+        }}
+        html += '</div>';
+        return html;
+      }}
+
+      function escapeHtml(str) {{
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }}
+
+      function addEventListeners() {{
+        var links = folderSection.querySelectorAll('.sidebar-folder-link[data-path]');
+        folderItemEls = [];
+
+        for (var i = 0; i < links.length; i++) {{
+          var link = links[i];
+          var path = link.dataset.path;
+          var treeItem = link.closest('[role="treeitem"]') || link;
+
+          folderItemEls.push(treeItem);
+          treeItem.dataset.folderPath = path;
+          treeItem.setAttribute('tabindex', '-1');
+
+          link.addEventListener('click', function(e) {{
+            var targetLink = e.currentTarget;
+            var p = targetLink.dataset.path;
+            var chevron = targetLink.querySelector('.folder-chevron:not(.folder-chevron-empty)');
+            if (chevron && e.target === chevron) {{
+              e.preventDefault();
+              e.stopPropagation();
+              toggleFolder(p, targetLink);
+              return;
+            }}
+          }});
+
+          link.addEventListener('contextmenu', function(e) {{
+            var p = e.currentTarget.dataset.path;
+            showContextMenu(e, p);
+          }});
+
+          setupTouchEvents(treeItem, path, link);
+
+          treeItem.addEventListener('keydown', handleTreeKeydown);
+        }}
+
+        folderSection.setAttribute('tabindex', '0');
+        folderSection.addEventListener('keydown', function(e) {{
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {{
+            e.preventDefault();
+          }}
+        }});
+
+        recalcFocusable();
+        setupFolderDropTargets();
+      }}
+
+      function setupTouchEvents(el, path, link) {{
+        var touchTimer = null;
+        var touchStartX = 0;
+        var touchStartY = 0;
+
+        el.addEventListener('touchstart', function(e) {{
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+          touchTimer = setTimeout(function() {{
+            touchTimer = null;
+            var fakeEvent = {{ preventDefault: function() {{}}, stopPropagation: function() {{}}, clientX: touchStartX, clientY: touchStartY }};
+            showContextMenu(fakeEvent, path);
+          }}, 500);
+        }}, {{ passive: true }});
+
+        el.addEventListener('touchmove', function() {{
+          if (touchTimer) {{
+            clearTimeout(touchTimer);
+            touchTimer = null;
+          }}
+        }}, {{ passive: true }});
+
+        el.addEventListener('touchend', function(e) {{
+          if (touchTimer) {{
+            clearTimeout(touchTimer);
+            touchTimer = null;
+          }}
+        }});
+
+        el.addEventListener('touchcancel', function() {{
+          if (touchTimer) {{
+            clearTimeout(touchTimer);
+            touchTimer = null;
+          }}
+        }});
+      }}
+
+      function toggleFolder(path, linkEl) {{
+        var item = linkEl.closest('[role="treeitem"]');
+        if (!item) return;
+        var group = item.querySelector(':scope > [role="group"]');
+        if (!group) return;
+        var chevron = linkEl.querySelector('.folder-chevron:not(.folder-chevron-empty)');
+        var isHidden = group.style.display === 'none';
+        group.style.display = isHidden ? '' : 'none';
+        if (chevron) chevron.classList.toggle('folder-chevron-collapsed');
+        item.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+      }}
+
+      function handleTreeKeydown(e) {{
+        var item = e.currentTarget;
+        switch (e.key) {{
+          case 'ArrowDown':
+            e.preventDefault();
+            moveFocus(1);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            moveFocus(-1);
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            if (item.getAttribute('aria-expanded') === 'false') {{
+              expandItem(item);
+            }} else if (item.getAttribute('aria-expanded') === 'true') {{
+              moveFocus(1);
+            }}
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (item.getAttribute('aria-expanded') === 'true') {{
+              collapseItem(item);
+            }} else {{
+              moveFocusParent(item);
+            }}
+            break;
+          case 'Enter':
+          case ' ':
+            e.preventDefault();
+            var link = item.querySelector('.sidebar-folder-link');
+            if (link) link.click();
+            break;
+          case 'Home':
+            e.preventDefault();
+            focusFirstItem();
+            break;
+          case 'End':
+            e.preventDefault();
+            focusLastItem();
+            break;
+        }}
+      }}
+
+      function getVisibleItems() {{
+        var all = folderSection.querySelectorAll('[role="treeitem"]');
+        var visible = [];
+        for (var i = 0; i < all.length; i++) {{
+          var el = all[i];
+          var parent = el.parentElement;
+          var hidden = false;
+          while (parent && parent !== folderSection) {{
+            if (parent.hasAttribute('role') && parent.getAttribute('role') === 'group' && parent.style.display === 'none') {{
+              hidden = true;
+              break;
+            }}
+            parent = parent.parentElement;
+          }}
+          if (!hidden) visible.push(el);
+        }}
+        return visible;
+      }}
+
+      function moveFocus(direction) {{
+        var visible = getVisibleItems();
+        if (visible.length === 0) return;
+        var currentIdx = -1;
+        for (var i = 0; i < visible.length; i++) {{
+          if (visible[i] === document.activeElement || visible[i].contains(document.activeElement)) {{
+            currentIdx = i;
+            break;
+          }}
+        }}
+        var newIdx = currentIdx + direction;
+        if (newIdx < 0) newIdx = 0;
+        if (newIdx >= visible.length) newIdx = visible.length - 1;
+        if (newIdx !== currentIdx) {{
+          visible[newIdx].focus();
+          visible[newIdx].setAttribute('tabindex', '0');
+          recalcFocusable(visible[newIdx]);
+        }}
+      }}
+
+      function focusFirstItem() {{
+        var visible = getVisibleItems();
+        if (visible.length > 0) {{
+          visible[0].focus();
+          recalcFocusable(visible[0]);
+        }}
+      }}
+
+      function focusLastItem() {{
+        var visible = getVisibleItems();
+        if (visible.length > 0) {{
+          visible[visible.length - 1].focus();
+          recalcFocusable(visible[visible.length - 1]);
+        }}
+      }}
+
+      function moveFocusParent(item) {{
+        var parentGroup = item.parentElement && item.parentElement.closest('[role="treeitem"]');
+        if (parentGroup) {{
+          parentGroup.focus();
+          recalcFocusable(parentGroup);
+        }}
+      }}
+
+      function expandItem(item) {{
+        var link = item.querySelector('.sidebar-folder-link');
+        var group = item.querySelector(':scope > [role="group"]');
+        var chevron = item.querySelector('.folder-chevron:not(.folder-chevron-empty)');
+        if (group) {{
+          group.style.display = '';
+          item.setAttribute('aria-expanded', 'true');
+          if (chevron) chevron.classList.remove('folder-chevron-collapsed');
+        }}
+      }}
+
+      function collapseItem(item) {{
+        var group = item.querySelector(':scope > [role="group"]');
+        var chevron = item.querySelector('.folder-chevron:not(.folder-chevron-empty)');
+        if (group) {{
+          group.style.display = 'none';
+          item.setAttribute('aria-expanded', 'false');
+          if (chevron) chevron.classList.add('folder-chevron-collapsed');
+        }}
+      }}
+
+      function recalcFocusable(activeItem) {{
+        var all = folderSection.querySelectorAll('[role="treeitem"]');
+        for (var i = 0; i < all.length; i++) {{
+          all[i].setAttribute('tabindex', '-1');
+        }}
+        if (activeItem) {{
+          activeItem.setAttribute('tabindex', '0');
+        }} else {{
+          var first = getVisibleItems()[0];
+          if (first) first.setAttribute('tabindex', '0');
+        }}
+      }}
+
+      function showCreateInput(parentPath) {{
+        removeInlineInput();
+        var placeholder = parentPath ? 'New subfolder name' : 'New folder name';
+        var form = createInputForm(placeholder, '');
+        var input = form.querySelector('.folder-inline-input');
+        var errorEl = form.querySelector('.folder-inline-error');
+
+        form._submit(function() {{
+          var name = input.value.trim();
+          var error = validateName(name);
+          if (error) {{
+            input.classList.add('invalid');
+            errorEl.textContent = error;
+            errorEl.classList.add('show');
+            return;
+          }}
+          input.classList.remove('invalid');
+          errorEl.classList.remove('show');
+          removeInlineInput();
+          performCreate(name, parentPath);
+        }});
+
+        if (!parentPath) {{
+          folderSection.insertBefore(form, folderSection.firstChild.nextSibling);
+        }} else {{
+          var parentItem = folderSection.querySelector('[data-folder-path="' + CSS.escape(parentPath) + '"]');
+          if (parentItem) {{
+            var group = parentItem.querySelector(':scope > [role="group"]');
+            if (group) {{
+              group.style.display = '';
+              parentItem.setAttribute('aria-expanded', 'true');
+              var chevron = parentItem.querySelector('.folder-chevron:not(.folder-chevron-empty)');
+              if (chevron) chevron.classList.remove('folder-chevron-collapsed');
+              group.insertBefore(form, group.firstChild);
+            }} else {{
+              parentItem.parentElement.insertBefore(form, parentItem.nextSibling);
+            }}
+          }} else {{
+            folderSection.appendChild(form);
+          }}
+        }}
+
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+
+        inlineEl = form;
+      }}
+
+      function showRenameInput(path) {{
+        removeInlineInput();
+        var name = path.split('/').pop();
+        var link = folderSection.querySelector('[data-path="' + CSS.escape(path) + '"]');
+        if (!link) return;
+        var treeItem = link.closest('[role="treeitem"]') || link;
+        treeItem.classList.add('folder-renaming');
+
+        link.style.display = 'none';
+
+        var form = createInputForm('Folder name', name);
+        var input = form.querySelector('.folder-inline-input');
+        var errorEl = form.querySelector('.folder-inline-error');
+
+        form._submit(function() {{
+          var newName = input.value.trim();
+          var error = validateName(newName);
+          if (error) {{
+            input.classList.add('invalid');
+            errorEl.textContent = error;
+            errorEl.classList.add('show');
+            return;
+          }}
+          if (newName === name) {{
+            removeInlineInput();
+            return;
+          }}
+          input.classList.remove('invalid');
+          errorEl.classList.remove('show');
+          removeInlineInput();
+          performRename(path, newName);
+        }});
+
+        link.parentElement.insertBefore(form, link.nextSibling);
+        input.focus();
+        input.setSelectionRange(0, name.length);
+        inlineEl = form;
+        inlineEl._link = link;
+        inlineEl._treeItem = treeItem;
+      }}
+
+      function createInputForm(placeholder, value) {{
+        var form = document.createElement('div');
+        form.className = 'folder-inline-form';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'folder-inline-input';
+        input.placeholder = placeholder;
+        input.value = value;
+        input.setAttribute('aria-label', placeholder);
+        input.setAttribute('maxlength', '100');
+        input.spellcheck = false;
+        form.appendChild(input);
+
+        var errorEl = document.createElement('div');
+        errorEl.className = 'folder-inline-error';
+        form.appendChild(errorEl);
+
+        var confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'folder-inline-confirm';
+        confirmBtn.innerHTML = '&#x2713;';
+        confirmBtn.setAttribute('aria-label', 'Confirm');
+        form.appendChild(confirmBtn);
+
+        var cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'folder-inline-cancel';
+        cancelBtn.innerHTML = '&#x2715;';
+        cancelBtn.setAttribute('aria-label', 'Cancel');
+        form.appendChild(cancelBtn);
+
+        var submitAction = null;
+
+        confirmBtn.addEventListener('click', function() {{
+          if (submitAction) submitAction();
+        }});
+
+        cancelBtn.addEventListener('click', function() {{
+          removeInlineInput();
+        }});
+
+        input.addEventListener('keydown', function(e) {{
+          if (e.key === 'Enter') {{
+            e.preventDefault();
+            if (submitAction) submitAction();
+          }} else if (e.key === 'Escape') {{
+            e.preventDefault();
+            removeInlineInput();
+          }}
+        }});
+
+        form._submit = function(action) {{
+          submitAction = action;
+        }};
+
+        return form;
+      }}
+
+      function removeInlineInput() {{
+        if (inlineEl) {{
+          if (inlineEl._link) {{
+            inlineEl._link.style.display = '';
+          }}
+          if (inlineEl._treeItem) {{
+            inlineEl._treeItem.classList.remove('folder-renaming');
+          }}
+          if (inlineEl.parentNode) inlineEl.parentNode.removeChild(inlineEl);
+          inlineEl = null;
+        }}
+      }}
+
+      function getParentPath(path) {{
+        var idx = path.lastIndexOf('/');
+        return idx === -1 ? '' : path.substring(0, idx);
+      }}
+
+      function getLeafName(path) {{
+        var idx = path.lastIndexOf('/');
+        return idx === -1 ? path : path.substring(idx + 1);
+      }}
+
+      function validateName(name) {{
+        if (!name || !name.trim()) return 'Name is required';
+        if (name.length > 100) return 'Name is too long';
+        if (!VALID_NAME_RE.test(name)) return 'Only letters, numbers, hyphens, underscores, and spaces allowed';
+        return '';
+      }}
+
+      async function performCreate(name, parentPath) {{
+        var fullPath = parentPath ? parentPath + '/' + name : name;
+        var parent = parentPath || '';
+
+        var tempFolder = {{ id: fullPath, name: name, parent: parent, path: fullPath, count: 0 }};
+        folders.push(tempFolder);
+        renderTree();
+
+        try {{
+          var res = await fetch('/api/folder', {{
+            method: 'POST',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ folder: fullPath }})
+          }});
+          if (!res.ok) {{
+            var errData = await res.json();
+            throw new Error(errData.error || 'Failed to create folder');
+          }}
+          showToast('Folder created', 'success');
+        }} catch (e) {{
+          folders = folders.filter(function(f) {{ return f.path !== fullPath; }});
+          renderTree();
+          showToast(e.message || 'Failed to create folder', 'error');
+        }}
+      }}
+
+      async function performRename(path, newName) {{
+        var oldName = getLeafName(path);
+        var parent = getParentPath(path);
+        var newPath = parent ? parent + '/' + newName : newName;
+
+        var oldFolders = folders.slice();
+        var updatePath = function(f) {{
+          if (f.path === path || f.path.indexOf(path + '/') === 0) {{
+            var suffix = f.path.substring(path.length);
+            return {{ id: newPath + suffix, name: suffix ? f.name : newName, parent: suffix ? newPath + suffix.substring(0, suffix.lastIndexOf('/')) : parent, path: newPath + suffix, count: f.count }};
+          }}
+          return f;
+        }};
+        folders = folders.map(updatePath);
+        renderTree();
+
+        try {{
+          var res = await fetch('/api/folder/' + encodeURIComponent(path), {{
+            method: 'PATCH',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ name: newName }})
+          }});
+          if (!res.ok) {{
+            var errData = await res.json();
+            throw new Error(errData.error || 'Failed to rename folder');
+          }}
+          showToast('Folder renamed', 'success');
+        }} catch (e) {{
+          folders = oldFolders;
+          renderTree();
+          showToast(e.message || 'Failed to rename folder', 'error');
+        }}
+      }}
+
+      async function performDelete(path) {{
+        var deletedFolders = folders.filter(function(f) {{ return f.path === path || f.path.indexOf(path + '/') === 0; }});
+        folders = folders.filter(function(f) {{ return f.path !== path && f.path.indexOf(path + '/') !== 0; }});
+        renderTree();
+
+        try {{
+          var res = await fetch('/api/folder/' + encodeURIComponent(path), {{ method: 'DELETE' }});
+          if (!res.ok) {{
+            var errData = await res.json();
+            throw new Error(errData.error || 'Failed to delete folder');
+          }}
+          showToast('Folder deleted', 'success');
+          if (currentFolder === path || currentFolder.indexOf(path + '/') === 0) {{
+            window.location.href = '/';
+          }}
+        }} catch (e) {{
+          folders = folders.concat(deletedFolders);
+          renderTree();
+          showToast(e.message || 'Failed to delete folder', 'error');
+        }}
+      }}
+
+      function confirmAndDelete(path) {{
+        var name = getLeafName(path);
+        if (!confirm('Delete folder "' + name + '" and move its notes to root?')) return;
+        performDelete(path);
+      }}
+
+      function setupGlobalOverride() {{
+        var newFolderBtns = document.querySelectorAll('[onclick*="newFolder"]');
+        for (var bi = 0; bi < newFolderBtns.length; bi++) {{
+          var btn = newFolderBtns[bi];
+          btn.removeAttribute('onclick');
+          btn.addEventListener('click', function(e) {{
+            e.preventDefault();
+            showCreateInput('');
+          }});
+        }}
+        var addFolderBtns = document.querySelectorAll('.sidebar-add-folder-btn');
+        for (var ai = 0; ai < addFolderBtns.length; ai++) {{
+          addFolderBtns[ai].addEventListener('click', function(e) {{
+            e.preventDefault();
+            showCreateInput('');
+          }});
+        }}
+      }}
+
+      /* ── Drag & Drop: move notes to folders ─────────────────── */
+      function initDragDrop() {{
+        var cards = document.querySelectorAll('.note-card');
+        var dragData = null;
+        var touchClone = null;
+
+        for (var ci = 0; ci < cards.length; ci++) {{
+          var card = cards[ci];
+
+          card.addEventListener('dragstart', function(e) {{
+            var noteName = this.dataset.noteName;
+            if (!noteName) {{ e.preventDefault(); return; }}
+            e.dataTransfer.setData('text/plain', noteName);
+            e.dataTransfer.effectAllowed = 'move';
+            this.classList.add('dragging');
+          }});
+
+          card.addEventListener('dragend', function(e) {{
+            this.classList.remove('dragging');
+            clearDragOver();
+          }});
+        }}
+
+        function getCardFromHandle(el) {{
+          while (el && !el.classList.contains('note-card')) {{
+            el = el.parentElement;
+          }}
+          return el;
+        }}
+
+        function onTouchStart(e) {{
+          var handle = e.target.closest('.note-card-drag-handle');
+          if (!handle) return;
+          var card = getCardFromHandle(handle);
+          if (!card || !card.dataset.noteName) return;
+
+          var touch = e.touches[0];
+          dragData = {{
+            card: card,
+            noteName: card.dataset.noteName,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            active: false,
+            clone: null,
+            currentTarget: null
+          }};
+        }}
+
+        function onTouchMove(e) {{
+          if (!dragData) return;
+          e.preventDefault();
+
+          var touch = e.touches[0];
+          var dx = touch.clientX - dragData.startX;
+          var dy = touch.clientY - dragData.startY;
+
+          if (!dragData.active) {{
+            if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {{
+              dragData.active = true;
+              dragData.card.classList.add('dragging');
+
+              touchClone = dragData.card.cloneNode(true);
+              touchClone.className = 'note-card-drag-clone';
+              touchClone.style.width = (dragData.card.offsetWidth * 0.85) + 'px';
+              document.body.appendChild(touchClone);
+              positionClone(touch);
+            }} else {{
+              return;
+            }}
+          }}
+
+          positionClone(touch);
+
+          touchClone.style.display = 'none';
+          var el = document.elementFromPoint(touch.clientX, touch.clientY);
+          touchClone.style.display = '';
+
+          clearDragOver();
+          var folderLink = el && el.closest('.sidebar-folder-link[data-path]');
+          if (folderLink) {{
+            folderLink.classList.add('drag-over');
+            dragData.currentTarget = folderLink;
+          }} else {{
+            dragData.currentTarget = null;
+          }}
+        }}
+
+        function positionClone(touch) {{
+          if (!touchClone) return;
+          var w = touchClone.offsetWidth;
+          touchClone.style.left = (touch.clientX - w / 2) + 'px';
+          touchClone.style.top = (touch.clientY - 20) + 'px';
+        }}
+
+        function onTouchEnd(e) {{
+          if (!dragData) return;
+          if (touchClone) {{
+            if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+            touchClone = null;
+          }}
+          dragData.card.classList.remove('dragging');
+
+          if (dragData.active && dragData.currentTarget) {{
+            var destFolder = dragData.currentTarget.dataset.path || '';
+            performMoveNote(dragData.noteName, destFolder, dragData.currentTarget);
+          }}
+
+          clearDragOver();
+          dragData = null;
+        }}
+
+        function onTouchCancel() {{
+          if (touchClone) {{
+            if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+            touchClone = null;
+          }}
+          if (dragData) {{
+            dragData.card.classList.remove('dragging');
+            dragData = null;
+          }}
+          clearDragOver();
+        }}
+
+        document.addEventListener('touchstart', onTouchStart, {{ passive: true }});
+        document.addEventListener('touchmove', onTouchMove, {{ passive: false }});
+        document.addEventListener('touchend', onTouchEnd);
+        document.addEventListener('touchcancel', onTouchCancel);
+      }}
+
+      function setupFolderDropTargets() {{
+        var folderLinks = folderSection.querySelectorAll('.sidebar-folder-link[data-path]');
+        for (var fi = 0; fi < folderLinks.length; fi++) {{
+          var fl = folderLinks[fi];
+
+          fl.addEventListener('dragover', function(e) {{
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+          }});
+
+          fl.addEventListener('dragenter', function(e) {{
+            e.preventDefault();
+            this.classList.add('drag-over');
+          }});
+
+          fl.addEventListener('dragleave', function(e) {{
+            this.classList.remove('drag-over');
+          }});
+
+          fl.addEventListener('drop', function(e) {{
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('drag-over');
+            var noteName = e.dataTransfer.getData('text/plain');
+            var destFolder = this.dataset.path || '';
+            if (noteName) {{
+              performMoveNote(noteName, destFolder, this);
+            }}
+          }});
+        }}
+      }}
+
+      function clearDragOver() {{
+        var highlighted = folderSection.querySelectorAll('.sidebar-folder-link.drag-over');
+        for (var hi = 0; hi < highlighted.length; hi++) {{
+          highlighted[hi].classList.remove('drag-over');
+        }}
+      }}
+
+      function performMoveNote(noteName, destFolder, folderLinkEl) {{
+        var card = document.querySelector('.note-card[data-note-name="' + CSS.escape(noteName) + '"]');
+        var currentFolderVal = card ? card.dataset.noteFolder || '' : '';
+        if (currentFolderVal === destFolder) {{
+          showToast('Note is already in ' + (destFolder || 'root'), 'info');
+          return;
+        }}
+
+        var removed = false;
+
+        if (card) {{
+          card.style.transition = 'opacity 0.2s, transform 0.2s';
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.95)';
+          removed = true;
+        }}
+
+        fetch('/api/note/' + encodeURIComponent(noteName) + '/move', {{
+          method: 'POST',
+          headers: {{ 'Content-Type': 'application/json' }},
+          body: JSON.stringify({{ folder: destFolder }})
+        }})
+        .then(function(res) {{
+          if (!res.ok) return res.json().then(function(d) {{ throw new Error(d.error || 'Failed to move note'); }});
+          return res.json();
+        }})
+        .then(function(data) {{
+          showToast('Moved to ' + (destFolder || 'root'), 'success');
+          if (card && card.parentNode) {{
+            card.parentNode.removeChild(card);
+            var noteList = document.querySelector('.note-list');
+            if (noteList && noteList.querySelectorAll('.note-card').length === 0) {{
+              var emptyEl = document.createElement('div');
+              emptyEl.className = 'empty';
+              emptyEl.innerHTML = '<p>No notes yet. Create your first one!</p>';
+              noteList.appendChild(emptyEl);
+            }}
+          }}
+        }})
+        .catch(function(err) {{
+          if (card && removed) {{
+            card.style.opacity = '';
+            card.style.transform = '';
+            var noteList = document.querySelector('.note-list');
+            if (noteList && !noteList.contains(card)) {{
+              var emptyEl = noteList.querySelector('.empty');
+              if (emptyEl) emptyEl.remove();
+              noteList.appendChild(card);
+            }}
+          }}
+          showToast(err.message || 'Failed to move note', 'error');
+        }});
+      }}
+
+      function init() {{
+        createContextMenu();
+        loadFolders();
+        setupGlobalOverride();
+        initDragDrop();
+      }}
+
+      if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', init);
+      }} else {{
+        init();
+      }}
+    }})();
     hljs.highlightAll();
     </script>
 </body>
