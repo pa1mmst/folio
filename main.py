@@ -1482,6 +1482,9 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
 
     if q or tag:
         notes = search_notes(q, tag=tag if tag else None, folder=folder if folder else None)
+    elif folder == '__unfiled__':
+        all_notes = list_notes()
+        notes = [{"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]} for n in all_notes if not n["folder"]]
     elif folder:
         notes = get_notes_by_folder(folder)
     else:
