@@ -1414,6 +1414,7 @@ async def edit_note(name: str, folder: str = "", request: Request = None):
     }}
 
     function loadAttachments() {{
+        if (!NOTE_NAME) return;
         fetch('/api/attachments?note=' + encodeURIComponent(NOTE_NAME))
             .then(function(r) {{ return r.json(); }})
             .then(function(files) {{
@@ -1825,11 +1826,11 @@ async def api_attachments(note: str = ""):
         records = get_attachments_for_note(note)
         filenames = {r["filename"] for r in records}
     else:
-        filenames = None
+        filenames = set()
 
     files = []
     for fname in sorted(os.listdir(upload_dir), reverse=True):
-        if filenames is not None and fname not in filenames:
+        if fname not in filenames:
             continue
         fpath = os.path.join(upload_dir, fname)
         if os.path.isfile(fpath):
