@@ -201,6 +201,7 @@ BASE_STYLE = """
   --text-accent: #5e6ad2;
   --accent: #5e6ad2;
   --accent-hover: #6b7ddb;
+  --accent-rgb: 94, 106, 210;
   --accent-muted: rgba(94, 106, 210, 0.08);
   --accent-glow: rgba(94, 106, 210, 0.18);
   --border: rgba(255,255,255,0.08);
@@ -482,6 +483,11 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
             'New subfolder' +
           '</button>' +
           '<div class="folder-context-menu-sep"></div>' +
+          '<button class="folder-context-menu-item" data-action="move-note-here" role="menuitem">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            'Move note here\u2026' +
+          '</button>' +
+          '<div class="folder-context-menu-sep"></div>' +
           '<button class="folder-context-menu-item folder-context-menu-item-danger" data-action="delete" role="menuitem">' +
             '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M5 4V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V4M11 4v7.5a1 1 0 01-1 1H4a1 1 0 01-1-1V4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
             'Delete' +
@@ -497,6 +503,7 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
           hideContextMenu();
           if (action === 'rename') showRenameInput(path);
           else if (action === 'new-subfolder') showCreateInput(path);
+          else if (action === 'move-note-here') promptMoveNote(path);
           else if (action === 'delete') confirmAndDelete(path);
         }});
 
@@ -1387,6 +1394,18 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
           }}
           showToast(err.message || 'Failed to move note', 'error');
         }});
+      }}
+
+      function promptMoveNote(folderPath) {{
+        var noteName = prompt('Enter the name of the note to move to "' + (folderPath || 'root') + '":');
+        if (!noteName || !noteName.trim()) return;
+        noteName = noteName.trim();
+        var card = document.querySelector('.note-card[data-note-name="' + CSS.escape(noteName) + '"]');
+        if (!card) {{
+          showToast('Note "' + noteName + '" not found', 'error');
+          return;
+        }}
+        performMoveNote(noteName, folderPath, null);
       }}
 
       function init() {{
@@ -2658,6 +2677,28 @@ def api_notes(folder: str = ""):
     else:
         notes = [{"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]} for n in list_notes()]
     return JSONResponse(notes)
+
+
+@app.patch("/api/note/{name:path}")
+async def api_patch_note(name: str, request: Request):
+    data = await request.json()
+    new_folder = data.get("folder", "")
+    if "folder" not in data:
+        return JSONResponse({"error": "Provide 'folder' to move note"}, status_code=400)
+    note = read_note(name)
+    if not note:
+        return JSONResponse({"error": "Note not found"}, status_code=404)
+    leaf = name.split("/")[-1]
+    new_name = f"{new_folder}/{leaf}" if new_folder else leaf
+    if new_name == name:
+        return JSONResponse({"name": name, "folder": new_folder})
+    write_note(new_name, note["content"])
+    delete_note(name)
+    remove_note(name)
+    tags = parse_tags(note["content"])
+    links = parse_wikilinks(note["content"])
+    index_note(new_name, note["content"], note["created_at"], note["updated_at"], tags, links, folder=new_folder)
+    return JSONResponse({"name": new_name, "folder": new_folder})
 
 
 @app.post("/api/note/{name:path}/move")
