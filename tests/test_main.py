@@ -9,13 +9,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from fastapi.testclient import TestClient
 from main import app
-from database import init_db as _init_db, migrate_db as _migrate_db
+from database import init_db as _init_db, migrate_db as _migrate_db, clear_all_notes
 
 
 @pytest.fixture(autouse=True)
 def _setup_db():
     _init_db()
     _migrate_db()
+    clear_all_notes()
     shutil.rmtree(os.environ["VAULT_DIR"], ignore_errors=True)
     os.makedirs(os.environ["VAULT_DIR"], exist_ok=True)
     yield
