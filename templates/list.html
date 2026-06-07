@@ -529,27 +529,6 @@
     }
   }
 
-  function addFolderButton() {
-    var folderToggle = document.getElementById('folderToggle');
-    if (!folderToggle) return;
-    var header = folderToggle.closest('.sidebar-section-header');
-    if (!header) return;
-    var existing = header.querySelector('.folder-add-btn');
-    if (existing) return;
-
-    var btn = document.createElement('button');
-    btn.className = 'folder-add-btn';
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-    btn.setAttribute('aria-label', 'New folder');
-    btn.setAttribute('title', 'New folder');
-    header.appendChild(btn);
-
-    btn.addEventListener('click', function(e) {
-      e.stopPropagation();
-      showCreateInput('');
-    });
-  }
-
   function showCreateInput(parentPath) {
     removeInlineInput();
     var placeholder = parentPath ? 'New subfolder name' : 'New folder name';
@@ -734,7 +713,6 @@
     var tempFolder = { id: fullPath, name: name, parent: parent, path: fullPath, count: 0 };
     folders.push(tempFolder);
     renderTree();
-    addFolderButton();
 
     try {
       var res = await fetch('/api/folder', {
@@ -750,7 +728,6 @@
     } catch (e) {
       folders = folders.filter(function(f) { return f.path !== fullPath; });
       renderTree();
-      addFolderButton();
       showToast(e.message || 'Failed to create folder', 'error');
     }
   }
@@ -770,7 +747,6 @@
     };
     folders = folders.map(updatePath);
     renderTree();
-    addFolderButton();
 
     try {
       var res = await fetch('/api/folder/' + encodeURIComponent(path), {
@@ -786,7 +762,6 @@
     } catch (e) {
       folders = oldFolders;
       renderTree();
-      addFolderButton();
       showToast(e.message || 'Failed to rename folder', 'error');
     }
   }
@@ -795,7 +770,6 @@
     var deletedFolders = folders.filter(function(f) { return f.path === path || f.path.indexOf(path + '/') === 0; });
     folders = folders.filter(function(f) { return f.path !== path && f.path.indexOf(path + '/') !== 0; });
     renderTree();
-    addFolderButton();
 
     try {
       var res = await fetch('/api/folder/' + encodeURIComponent(path), { method: 'DELETE' });
@@ -810,7 +784,6 @@
     } catch (e) {
       folders = folders.concat(deletedFolders);
       renderTree();
-      addFolderButton();
       showToast(e.message || 'Failed to delete folder', 'error');
     }
   }
@@ -835,10 +808,11 @@
   }
 
   function setupGlobalOverride() {
-    var newFolderBtn = document.querySelector('[onclick*="newFolder"]');
-    if (newFolderBtn) {
-      newFolderBtn.removeAttribute('onclick');
-      newFolderBtn.addEventListener('click', function(e) {
+    var newFolderBtns = document.querySelectorAll('[onclick*="newFolder"]');
+    for (var bi = 0; bi < newFolderBtns.length; bi++) {
+      var btn = newFolderBtns[bi];
+      btn.removeAttribute('onclick');
+      btn.addEventListener('click', function(e) {
         e.preventDefault();
         showCreateInput('');
       });
@@ -1081,7 +1055,6 @@
   }
 
   function init() {
-    addFolderButton();
     loadFolders();
     setupGlobalOverride();
     initDragDrop();
