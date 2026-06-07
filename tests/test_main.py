@@ -480,10 +480,10 @@ class TestAttachments:
         assert r.json() == []
 
     def test_attachments_list_after_upload(self, client):
-        r = client.post("/api/upload", files={"file": ("test.png", b"fake-png-content", "image/png")})
+        r = client.post("/api/upload", files={"file": ("test.png", b"fake-png-content", "image/png")}, data={"note_name": "test-note"})
         assert r.status_code == 200
         filename = r.json()["url"].split("/")[-1]
-        r2 = client.get("/api/attachments")
+        r2 = client.get("/api/attachments?note=test-note")
         assert r2.status_code == 200
         data = r2.json()
         assert any(f["filename"] == filename for f in data)
@@ -534,6 +534,20 @@ class TestAttachments:
         r = client.get("/api/attachments?note=unrelated-note")
         assert r.status_code == 200
         assert r.json() == []
+
+    def test_attachments_requires_note_filter(self, client):
+        r = client.post("/api/upload", files={"file": ("secret.png", b"secret-content", "image/png")}, data={"note_name": "private-note"})
+        assert r.status_code == 200
+        filename = r.json()["url"].split("/")[-1]
+        r = client.get("/api/attachments?note=private-note")
+        assert r.status_code == 200
+        data = r.json()
+        assert any(f["filename"] == filename for f in data)
+        r = client.get("/api/attachments")
+        assert r.status_code == 200
+        data = r.json()
+        assert data == []
+        assert not any(f["filename"] == filename for f in data)
 
     def test_editor_has_attachments_panel(self, client):
         r = client.get("/edit/test-editor")
