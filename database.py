@@ -205,3 +205,31 @@ def get_all_folders_with_counts():
     conn.close()
     counts = {r["folder"]: r["count"] for r in rows}
     return [{"folder": f, "count": counts.get(f, 0)} for f in folders]
+
+
+def update_folder_paths_in_db(old_prefix, new_prefix):
+    """Update all note names and folder paths in DB when a folder is renamed/moved on disk."""
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT name FROM notes WHERE name = ? OR name LIKE ?",
+        (old_prefix, f"{old_prefix}/%"),
+    ).fetchall()
+    for r in rows:
+        old_name = r["name"]
+        if old_name == old_prefix:
+            new_name = new_prefix
+        else:
+            new_name = new_prefix + old_name[len(old_prefix):]
+        new_folder = new_name.rsplit("/", 1)[0] if "/" in new_name else ""
+        conn.execute("UPDATE notes SET name = ?, folder = ? WHERE name = ?",
+                     (new_name, new_folder, old_name))
+        conn.execute("UPDATE tags SET note_name = ? WHERE note_name = ?",
+                     (new_name, old_name))
+        conn.execute("UPDATE links SET source_note = ? WHERE source_note = ?",
+                     (new_name, old_name))
+        conn.execute("UPDATE links SET target_note = ? WHERE target_note = ?",
+                     (new_name, old_name))
+        conn.execute("UPDATE attachments SET note_name = ? WHERE note_name = ?",
+                     (new_name, old_name))
+    conn.commit()
+    conn.close()

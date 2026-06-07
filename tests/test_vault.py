@@ -139,3 +139,141 @@ class TestVaultFolders:
         delete_note("sibling-test/a")
         assert os.path.exists("/tmp/vault-test/sibling-test")
         assert os.path.exists("/tmp/vault-test/sibling-test/sub")
+
+
+class TestValidatePath:
+    def test_valid_paths(self):
+        from vault import _validate_path
+        assert _validate_path("simple")
+        assert _validate_path("nested/folder")
+        assert _validate_path("a/b/c/d")
+        assert _validate_path("my-folder_name")
+
+    def test_empty_path(self):
+        from vault import _validate_path
+        assert not _validate_path("")
+        assert not _validate_path("/")
+        assert not _validate_path("/leading")
+
+    def test_path_traversal(self):
+        from vault import _validate_path
+        assert not _validate_path("..")
+        assert not _validate_path("../outside")
+        assert not _validate_path("a/../b")
+        assert not _validate_path(".")
+        assert not _validate_path("./foo")
+
+    def test_invalid_chars(self):
+        from vault import _validate_path
+        assert not _validate_path("folder<name")
+        assert not _validate_path("folder>name")
+        assert not _validate_path('folder:name')
+        assert not _validate_path('folder"name')
+        assert not _validate_path("folder\\name")
+        assert not _validate_path("folder|name")
+        assert not _validate_path("folder?name")
+        assert not _validate_path("folder*name")
+
+    def test_trailing_slash(self):
+        from vault import _validate_path
+        assert not _validate_path("folder/")
+        assert not _validate_path("a/b/")
+
+
+class TestDeleteFolder:
+    def setup_method(self):
+        import shutil
+        shutil.rmtree("/tmp/vault-test", ignore_errors=True)
+        os.makedirs("/tmp/vault-test", exist_ok=True)
+
+    def test_delete_empty_folder(self):
+        from vault import delete_folder
+        os.makedirs("/tmp/vault-test/df-empty", exist_ok=True)
+        ok, result = delete_folder("df-empty")
+        assert ok
+        assert result == []
+        assert not os.path.exists("/tmp/vault-test/df-empty")
+
+    def test_delete_folder_moves_notes_to_root(self):
+        from vault import delete_folder, note_exists
+        write_note("df-notes/n1", "note 1")
+        write_note("df-notes/n2", "note 2")
+        ok, moved = delete_folder("df-notes")
+        assert ok
+        assert len(moved) == 2
+        assert not os.path.exists("/tmp/vault-test/df-notes")
+        assert note_exists("n1")
+        assert note_exists("n2")
+
+    def test_delete_folder_moves_nested_notes(self):
+        from vault import delete_folder, note_exists
+        write_note("df-nested/sub/a", "a")
+        write_note("df-nested/sub/deep/b", "b")
+        ok, moved = delete_folder("df-nested")
+        assert ok
+        assert len(moved) == 2
+        assert note_exists("sub/a")
+        assert note_exists("sub/deep/b")
+
+    def test_delete_nonexistent(self):
+        from vault import delete_folder
+        ok, err = delete_folder("df-nonexistent")
+        assert not ok
+        assert err == "Folder not found"
+
+    def test_delete_invalid_path(self):
+        from vault import delete_folder
+        ok, err = delete_folder("../outside")
+        assert not ok
+        assert err == "Invalid folder path"
+
+
+class TestRenameFolder:
+    def setup_method(self):
+        import shutil
+        shutil.rmtree("/tmp/vault-test", ignore_errors=True)
+        os.makedirs("/tmp/vault-test", exist_ok=True)
+
+    def test_rename_folder(self):
+        from vault import rename_folder, note_exists
+        write_note("rn-old/n1", "content")
+        ok, info, err = rename_folder("rn-old", "rn-new")
+        assert ok, f"rename failed: {err}"
+        assert info == ("rn-old", "rn-new")
+        assert note_exists("rn-new/n1")
+        assert not note_exists("rn-old/n1")
+
+    def test_rename_move_to_parent(self):
+        from vault import rename_folder, note_exists
+        write_note("rn-a/rn-b/rn-c/n1", "content")
+        ok, info, err = rename_folder("rn-a/rn-b/rn-c", "rn-a/rn-x")
+        assert ok, f"rename failed: {err}"
+        assert note_exists("rn-a/rn-x/n1")
+
+    def test_rename_nonexistent(self):
+        from vault import rename_folder
+        ok, info, err = rename_folder("rn-ghost", "rn-new")
+        assert not ok
+        assert err == "Folder not found"
+
+    def test_rename_cycle_prevention(self):
+        from vault import rename_folder
+        os.makedirs("/tmp/vault-test/rn-cycle/rn-sub", exist_ok=True)
+        ok, info, err = rename_folder("rn-cycle", "rn-cycle/rn-sub")
+        assert not ok
+        assert "itself" in err
+
+    def test_rename_same_name(self):
+        from vault import rename_folder
+        os.makedirs("/tmp/vault-test/rn-same", exist_ok=True)
+        ok, info, err = rename_folder("rn-same", "rn-same")
+        assert not ok
+        assert "itself" in err
+
+    def test_rename_conflict(self):
+        from vault import rename_folder
+        os.makedirs("/tmp/vault-test/rn-existing", exist_ok=True)
+        os.makedirs("/tmp/vault-test/rn-source", exist_ok=True)
+        ok, info, err = rename_folder("rn-source", "rn-existing")
+        assert not ok
+        assert "already exists" in err

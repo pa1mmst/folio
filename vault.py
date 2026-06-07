@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 from datetime import datetime, timezone
 
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\](?!\])")
@@ -127,6 +128,71 @@ def get_all_folders():
             rel_dir = os.path.relpath(os.path.join(root, d), vd)
             folders.add(rel_dir)
     return sorted(folders)
+
+
+INVALID_FS_CHARS = set('<>:"\\|?*\x00')
+
+
+def _validate_path(path):
+    if not path or path.startswith("/") or path.endswith("/"):
+        return False
+    parts = path.split("/")
+    for p in parts:
+        if not p or p in (".", ".."):
+            return False
+        for c in p:
+            if c in INVALID_FS_CHARS:
+                return False
+    return True
+
+
+def delete_folder(path):
+    if not _validate_path(path):
+        return False, "Invalid folder path"
+    vd = vault_dir()
+    folder_full = os.path.join(vd, path)
+    if not os.path.isdir(folder_full):
+        return False, "Folder not found"
+    parent = get_folder(path)
+    notes_to_move = []
+    for root, _dirs, files in os.walk(folder_full):
+        for f in files:
+            if f.endswith(".md"):
+                rel_path = os.path.relpath(os.path.join(root, f), vd)
+                name = rel_path[:-3]
+                notes_to_move.append(name)
+    moved = []
+    for name in notes_to_move:
+        suffix = name[len(path):]
+        new_name = f"{parent}{suffix}" if parent else suffix.lstrip("/")
+        note = read_note(name)
+        if note:
+            write_note(new_name, note["content"])
+            delete_note(name)
+            moved.append((name, new_name, note["content"]))
+    if os.path.isdir(folder_full):
+        shutil.rmtree(folder_full)
+    _remove_empty_parents(os.path.dirname(folder_full))
+    return True, moved
+
+
+def rename_folder(old_path, new_path):
+    if not _validate_path(old_path):
+        return False, None, "Invalid source folder path"
+    if not _validate_path(new_path):
+        return False, None, "Invalid target folder path"
+    vd = vault_dir()
+    old_full = os.path.join(vd, old_path)
+    new_full = os.path.join(vd, new_path)
+    if not os.path.isdir(old_full):
+        return False, None, "Folder not found"
+    if new_path == old_path or new_path.startswith(old_path + "/"):
+        return False, None, "Cannot move folder into itself"
+    if os.path.exists(new_full):
+        return False, None, "Target folder already exists"
+    os.makedirs(os.path.dirname(new_full), exist_ok=True)
+    os.rename(old_full, new_full)
+    return True, (old_path, new_path), None
 
 
 def parse_tags(content):

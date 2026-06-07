@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 import pytest
 
 os.environ["VAULT_DIR"] = "/tmp/vault-test-api"
@@ -15,6 +16,8 @@ from database import init_db as _init_db, migrate_db as _migrate_db
 def _setup_db():
     _init_db()
     _migrate_db()
+    shutil.rmtree(os.environ["VAULT_DIR"], ignore_errors=True)
+    os.makedirs(os.environ["VAULT_DIR"], exist_ok=True)
     yield
 
 
@@ -88,7 +91,7 @@ class TestFolders:
         r = client.get("/api/folders")
         assert r.status_code == 200
         data = r.json()
-        assert any(f["folder"] == "folder-test" for f in data)
+        assert any(f["id"] == "folder-test" and f["name"] == "folder-test" and f["parent"] == "" for f in data)
 
     def test_home_page_filters_by_folder(self, client):
         client.post("/api/note", json={"name": "filter-me/n1", "content": "n1"})
@@ -184,6 +187,89 @@ class TestFolders:
         r = client.get("/")
         assert r.status_code == 200
         assert "ghost-folder" not in r.text, "Removed folder should not appear in sidebar tree"
+
+    def test_folder_api_flat_format(self, client):
+        client.post("/api/note", json={"name": "a/b/c/n1", "content": "n1"})
+        r = client.get("/api/folders")
+        assert r.status_code == 200
+        data = r.json()
+        item = next((f for f in data if f["id"] == "a/b/c"), None)
+        assert item is not None
+        assert item["name"] == "c"
+        assert item["parent"] == "a/b"
+        assert item["path"] == "a/b/c"
+        assert isinstance(item["count"], int)
+
+    def test_delete_folder_api(self, client):
+        client.post("/api/note", json={"name": "del-folder/n1", "content": "n1"})
+        client.post("/api/note", json={"name": "del-folder/n2", "content": "n2"})
+        r = client.delete("/api/folder/del-folder")
+        assert r.status_code == 200
+        assert r.json() == {"ok": True}
+        r = client.get("/api/notes")
+        notes = [n["name"] for n in r.json()]
+        assert "n1" in notes
+        assert "n2" in notes
+        assert "del-folder/n1" not in notes
+
+    def test_delete_folder_api_nested(self, client):
+        client.post("/api/note", json={"name": "del-sub/x/a", "content": "a"})
+        client.post("/api/note", json={"name": "del-sub/x/b", "content": "b"})
+        r = client.delete("/api/folder/del-sub/x")
+        assert r.status_code == 200
+        r = client.get("/api/notes")
+        notes = [n["name"] for n in r.json()]
+        assert "del-sub/a" in notes and "del-sub/b" in notes
+        assert "del-sub/x/a" not in notes
+        assert "del-sub/x/b" not in notes
+
+    def test_delete_folder_not_found(self, client):
+        r = client.delete("/api/folder/nonexistent")
+        assert r.status_code == 404
+
+    def test_delete_folder_invalid_path(self, client):
+        r = client.delete("/api/folder/invalid<path")
+        assert r.status_code == 400
+
+    def test_rename_folder_api(self, client):
+        client.post("/api/note", json={"name": "rename-me/n1", "content": "n1"})
+        r = client.patch("/api/folder/rename-me", json={"name": "renamed-dest"})
+        assert r.status_code == 200, f"rename failed: {r.json()}"
+        assert r.json()["path"] == "renamed-dest"
+        r = client.get("/api/notes")
+        notes = [n["name"] for n in r.json()]
+        assert "renamed-dest/n1" in notes, f"renamed note not found in {notes}"
+        assert "rename-me/n1" not in notes
+
+    def test_move_folder_api(self, client):
+        client.post("/api/note", json={"name": "movable-folder/n1", "content": "n1"})
+        r = client.patch("/api/folder/movable-folder", json={"parent": "move-parent"})
+        assert r.status_code == 200, f"move failed: {r.json()}"
+        assert r.json()["path"] == "move-parent/movable-folder"
+        r = client.get("/api/notes")
+        notes = [n["name"] for n in r.json()]
+        assert "move-parent/movable-folder/n1" in notes
+
+    def test_patch_folder_not_found(self, client):
+        r = client.patch("/api/folder/nonexistent", json={"name": "newname"})
+        assert r.status_code == 404
+
+    def test_patch_folder_invalid_name(self, client):
+        r = client.patch("/api/folder/test", json={"name": ""})
+        assert r.status_code == 400
+        r = client.patch("/api/folder/test", json={"name": "with/slash"})
+        assert r.status_code == 400
+
+    def test_patch_folder_cycle_prevention(self, client):
+        client.post("/api/note", json={"name": "cycle-folder/a", "content": "a"})
+        r = client.patch("/api/folder/cycle-folder", json={"parent": "cycle-folder"})
+        assert r.status_code == 400
+        assert "itself" in r.text
+
+    def test_patch_folder_no_body(self, client):
+        r = client.patch("/api/folder/test", json={})
+        assert r.status_code == 400
+        assert "Provide" in r.text
 
 
 class TestBacklinks:

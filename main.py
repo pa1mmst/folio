@@ -12,11 +12,12 @@ from database import (
     get_all_tags, get_all_links, get_all_note_names, get_backlinks,
     get_notes_by_folder, get_all_folders_with_counts, clear_all_notes,
     add_attachment, get_attachments_for_note, remove_attachment,
+    update_folder_paths_in_db,
 )
 from vault import (
     read_note, write_note, delete_note, list_notes, get_folder,
     parse_tags, parse_wikilinks, strip_frontmatter, note_exists,
-    create_folder,
+    create_folder, delete_folder, rename_folder, _validate_path,
 )
 
 try:
@@ -1652,7 +1653,20 @@ async def graph_page():
 @app.get("/api/folders")
 def api_folders():
     folders = get_all_folders_with_counts()
-    return JSONResponse(folders)
+    result = []
+    for f in folders:
+        folder = f["folder"]
+        count = f["count"]
+        name = folder.split("/")[-1] if "/" in folder else folder
+        parent = folder.rsplit("/", 1)[0] if "/" in folder else ""
+        result.append({
+            "id": folder,
+            "name": name,
+            "parent": parent,
+            "path": folder,
+            "count": count,
+        })
+    return JSONResponse(result)
 
 
 @app.get("/api/search")
@@ -1723,6 +1737,63 @@ async def api_create_folder(request: Request):
         return JSONResponse({"error": "Invalid folder name"}, status_code=400)
     create_folder(folder_path)
     return JSONResponse({"folder": folder_path})
+
+
+@app.delete("/api/folder/{path:path}")
+async def api_delete_folder(path: str):
+    path = path.strip().rstrip("/")
+    if not path:
+        return JSONResponse({"error": "Folder path required"}, status_code=400)
+    if not _validate_path(path):
+        return JSONResponse({"error": "Invalid folder path"}, status_code=400)
+    ok, result = delete_folder(path)
+    if not ok:
+        status = 404 if result == "Folder not found" else 400
+        return JSONResponse({"error": result}, status_code=status)
+    for old_name, new_name, content in result:
+        remove_note(old_name)
+        tags = parse_tags(content)
+        links = parse_wikilinks(content)
+        note = read_note(new_name)
+        if note:
+            index_note(new_name, content, note["created_at"], note["updated_at"], tags, links, folder=note["folder"])
+    return JSONResponse({"ok": True})
+
+
+@app.patch("/api/folder/{path:path}")
+async def api_patch_folder(path: str, request: Request):
+    data = await request.json()
+    path = path.strip().rstrip("/")
+    if not _validate_path(path):
+        return JSONResponse({"error": "Invalid folder path"}, status_code=400)
+    if "name" in data:
+        new_name = data["name"].strip()
+        if not new_name or "/" in new_name:
+            return JSONResponse({"error": "Invalid folder name"}, status_code=400)
+        parent = get_folder(path)
+        new_path = f"{parent}/{new_name}" if parent else new_name
+        ok, info, err = rename_folder(path, new_path)
+        if not ok:
+            status = 404 if err == "Folder not found" else 409 if "already exists" in (err or "") else 400
+            return JSONResponse({"error": err}, status_code=status)
+        old_prefix, new_prefix = info
+        update_folder_paths_in_db(old_prefix, new_prefix)
+        return JSONResponse({"ok": True, "path": new_path})
+    elif "parent" in data:
+        new_parent = data["parent"].strip().rstrip("/")
+        if new_parent and not _validate_path(new_parent):
+            return JSONResponse({"error": "Invalid parent path"}, status_code=400)
+        leaf = path.split("/")[-1]
+        new_path = f"{new_parent}/{leaf}" if new_parent else leaf
+        ok, info, err = rename_folder(path, new_path)
+        if not ok:
+            status = 404 if err == "Folder not found" else 409 if "already exists" in (err or "") else 400
+            return JSONResponse({"error": err}, status_code=status)
+        old_prefix, new_prefix = info
+        update_folder_paths_in_db(old_prefix, new_prefix)
+        return JSONResponse({"ok": True, "path": new_path})
+    else:
+        return JSONResponse({"error": "Provide 'name' to rename or 'parent' to move"}, status_code=400)
 
 
 @app.get("/api/notes")
