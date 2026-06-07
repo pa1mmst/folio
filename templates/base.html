@@ -542,6 +542,7 @@
       input.setSelectionRange(input.value.length, input.value.length);
       inlineEl = form;
     }
+    window.showCreateInput = showCreateInput;
 
     function showRenameInput(path) {
       removeInlineInput();
@@ -702,7 +703,7 @@
     }
 
     function setupGlobalOverride() {
-      var newFolderBtns = document.querySelectorAll('[onclick*="newFolder"]');
+      var newFolderBtns = document.querySelectorAll('[onclick*="newFolder"], [data-new-folder]');
       for (var bi = 0; bi < newFolderBtns.length; bi++) {
         var btn = newFolderBtns[bi];
         btn.removeAttribute('onclick');
