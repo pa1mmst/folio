@@ -167,13 +167,14 @@ class TestFolders:
 
     def test_folder_tree_shows_folder_on_disk(self, client):
         """Folders whose directory exists on disk should appear in the
-        sidebar folder tree even when empty."""
+        sidebar folder tree even when empty (loaded via /api/folders)."""
         vault = os.environ.get("VAULT_DIR", "/tmp/vault-test-api")
         fdir = os.path.join(vault, "on-disk-folder")
         os.makedirs(fdir, exist_ok=True)
-        r = client.get("/")
+        r = client.get("/api/folders")
         assert r.status_code == 200
-        assert "on-disk-folder" in r.text, "Folder on disk should appear in sidebar tree"
+        data = r.json()
+        assert any(f["name"] == "on-disk-folder" for f in data), "Folder on disk should appear in folder API"
 
     def test_folder_tree_excludes_removed_folders(self, client):
         """Folders whose directory has been removed from disk should not appear

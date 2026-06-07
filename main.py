@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, Request, File, UploadFile, Form
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from contextlib import asynccontextmanager
 
 from database import (
@@ -44,6 +45,8 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(static_dir, exist_ok=True)
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+templates = Jinja2Templates(directory=templates_dir)
 
 # ── Markdown → HTML (minimal, no deps) ───────────────────────
 def md_to_html(text):
@@ -562,98 +565,48 @@ async def home(request: Request, q: str = "", tag: str = "", folder: str = ""):
     elif folder:
         notes = get_notes_by_folder(folder)
     else:
-        notes = []
-        for n in list_notes():
-            notes.append({"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]})
+        notes = [{"name": n["name"], "folder": n["folder"], "updated_at": n["updated_at"]} for n in list_notes()]
 
-    # Build tag options
-    tag_options = '<option value="">All tags</option>'
-    for t in all_tags:
-        selected = 'selected' if t['tag'] == tag else ''
-        tag_options += f'<option value="{t["tag"]}" {selected}>#{t["tag"]} ({t["cnt"]})</option>'
-
-    note_cards = ""
+    enriched_notes = []
     for n in notes:
         note_data = read_note(n["name"])
-        tags = parse_tags(note_data["content"]) if note_data else []
-        tags_html = "".join(f'<a href="/?tag={t}" class="tag">#{t}</a>' for t in tags[:5])
-        updated = n.get("updated_at", "")[:10]
-        content_preview = ""
-        note_folder = n.get("folder", "")
         if note_data:
-            raw_lines = [l.strip() for l in note_data["content"].split("\n") if l.strip()]
+            content = note_data["content"]
+            n["tags"] = parse_tags(content)
+            raw_lines = [l.strip() for l in content.split("\n") if l.strip()]
+            preview = ""
             for line in raw_lines:
                 if not line.startswith("---") and not line.startswith("# "):
-                    content_preview = line[:140]
+                    preview = line[:140]
                     break
-        folder_badge = f'<span class="note-folder-badge">{note_folder}</span>' if note_folder else ""
-        note_cards += f"""
-        <div class="note-card" onclick="if(!event.target.closest('a,button')){{window.location='/note/{n['name']}'}}">
-            <div class="note-card-header">
-                {folder_badge}
-                <h3 class="note-card-title"><a href="/note/{n['name']}">{n['name'].split('/')[-1]}</a></h3>
-            </div>
-            {'<div class="note-card-preview">' + content_preview + '</div>' if content_preview else '<div class="note-card-preview" style="color:var(--text-muted);font-style:italic;">Empty note</div>'}
-            <div class="note-card-footer">
-                <div class="tags">{tags_html}</div>
-                <span class="note-card-meta">{updated}</span>
-            </div>
-        </div>"""
+            n["content_preview"] = preview
+        else:
+            n["tags"] = []
+            n["content_preview"] = ""
+        enriched_notes.append(n)
 
-    if not note_cards:
-        skeleton = ""
-        if not q and not tag and not folder:
-            skeleton = """
-            <div class="skeleton-note"><div class="skeleton-line w-55"></div><div class="skeleton-line w-85"></div><div class="skeleton-line w-40"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-45"></div><div class="skeleton-line w-75"></div><div class="skeleton-line w-35"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-60"></div><div class="skeleton-line w-80"></div><div class="skeleton-line w-30"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-50"></div><div class="skeleton-line w-70"></div><div class="skeleton-line w-45"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-65"></div><div class="skeleton-line w-60"></div><div class="skeleton-line w-50"></div></div>
-            <div class="skeleton-note"><div class="skeleton-line w-40"></div><div class="skeleton-line w-90"></div><div class="skeleton-line w-25"></div></div>
-            """
-        msg = "No notes here yet." if folder else "No notes yet. Create your first one!"
-        note_cards = f'<div class="empty"><p>{msg}</p></div>' + skeleton
-
-    folder_breadcrumb = ""
-    page_title_html = '<h1 class="page-title">Notes</h1>'
+    folder_breadcrumb = []
     if folder:
         parts = folder.split("/")
-        crumbs = '<a href="/" class="folder-crumb">Notes</a>'
+        folder_breadcrumb.append({"label": "Notes", "href": "/"})
         path = ""
         for p in parts:
             path = f"{path}/{p}" if path else p
-            crumbs += '<span class="folder-crumb-sep">/</span>'
-            crumbs += f'<a href="/?folder={path}" class="folder-crumb">{p}</a>'
-        folder_breadcrumb = f'<div class="folder-breadcrumb">{crumbs}</div>'
-        page_title_html = f'<div>{folder_breadcrumb}<h1 class="page-title">Notes</h1></div>'
-    body = f"""
-    <div class="page-header">
-        {page_title_html}
-        <div class="page-header-actions">
-            <a href="/edit/new{f'?folder={folder}' if folder else ''}" class="btn btn-primary">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
-                    <path d="M7 2v10M2 7h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                New Note
-            </a>
-            <button onclick="newFolder()" class="btn btn-primary">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:2px">
-                    <path d="M2 3h4l2 2h4a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                New Folder
-            </button>
-        </div>
-    </div>
-    <div class="search-bar">
-        <input type="text" name="q" placeholder="Search notes..." value="{q}" id="searchInput"
-               onkeydown="if(event.key==='Enter')window.location='/?q='+encodeURIComponent(this.value)+'{tag_filter}{folder_filter}'">
-        <select onchange="window.location='/?tag='+encodeURIComponent(this.value)+'&q={q}{folder_filter}'">
-            {tag_options}
-        </select>
-    </div>
-    <div class="note-list">{note_cards}</div>
-    """
-    return render_page("Notes", body, current_folder=folder)
+            folder_breadcrumb.append({"label": p, "href": f"/?folder={path}"})
+
+    return templates.TemplateResponse(request, "list.html", {
+        "q": q,
+        "tag": tag,
+        "folder": folder,
+        "notes": enriched_notes,
+        "all_tags": all_tags,
+        "active_tag": tag,
+        "folder_breadcrumb": folder_breadcrumb,
+        "tag_filter": tag_filter,
+        "folder_filter": folder_filter,
+        "tags": all_tags,
+        "active": "notes",
+    })
 
 
 @app.get("/note/{name:path}", response_class=HTMLResponse)
