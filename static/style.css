@@ -719,6 +719,109 @@
   flex-shrink: 0;
 }
 
+/* ── Drag Handle ────────────────────────────────────────── */
+.note-card-drag-handle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  z-index: 2;
+  padding: 0;
+  line-height: 1;
+}
+
+.note-card:hover .note-card-drag-handle,
+.note-card-drag-handle:focus-visible {
+  opacity: 0.6;
+}
+
+.note-card-drag-handle:hover {
+  opacity: 1 !important;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.note-card-drag-handle:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 768px) {
+  .note-card-drag-handle {
+    opacity: 0.5;
+  }
+}
+
+/* ── Dragging State ─────────────────────────────────────── */
+.note-card.dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+/* ── Drop Target Highlight ──────────────────────────────── */
+.sidebar-folder-link.drag-over {
+  background: var(--accent-muted) !important;
+  color: var(--accent) !important;
+  box-shadow: inset 2px 0 0 var(--accent);
+  position: relative;
+}
+
+.sidebar-folder-link.drag-over::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+/* ── Touch Drag Clone ───────────────────────────────────── */
+.note-card-drag-clone {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  opacity: 0.85;
+  transform: scale(0.95) rotate(-1deg);
+  transition: none;
+  cursor: grabbing;
+  overflow: hidden;
+}
+
+.note-card-drag-clone h3 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.note-card-drag-clone h3 a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.note-card-drag-clone .meta,
+.note-card-drag-clone .tags,
+.note-card-drag-clone .note-card-drag-handle {
+  display: none;
+}
+
 /* ── Tags / Pills ───────────────────────────────────────── */
 .tag {
   display: inline-flex;

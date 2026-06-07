@@ -19,8 +19,18 @@
 </div>
 <div class="note-list">
   {% for note in notes %}
-  <div class="note-card">
-    <h3><a href="/note/{{ note.name }}">{{ note.name }}</a></h3>
+  <div class="note-card" draggable="true" data-note-name="{{ note.name }}" data-note-folder="{{ note.folder }}">
+    <button class="note-card-drag-handle" aria-label="Drag to move" draggable="false" type="button">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <circle cx="3" cy="3" r="1" fill="currentColor"/>
+        <circle cx="9" cy="3" r="1" fill="currentColor"/>
+        <circle cx="3" cy="6" r="1" fill="currentColor"/>
+        <circle cx="9" cy="6" r="1" fill="currentColor"/>
+        <circle cx="3" cy="9" r="1" fill="currentColor"/>
+        <circle cx="9" cy="9" r="1" fill="currentColor"/>
+      </svg>
+    </button>
+    <h3><a href="/note/{{ note.name }}" draggable="false">{{ note.name }}</a></h3>
     <div class="meta">{{ note.updated_at[:10] }}</div>
     <div class="tags">
       {% for tag in note.tags[:5] %}
@@ -180,7 +190,7 @@
     var tree = buildTree(folders);
     var activeClass = currentFolder === '' ? ' folder-link-active' : '';
     var html =
-      '<a href="/" class="sidebar-folder-link' + activeClass + '" style="padding-left:12px;" role="treeitem" tabindex="0">' +
+      '<a href="/" class="sidebar-folder-link' + activeClass + '" style="padding-left:12px;" role="treeitem" tabindex="0" data-path="">' +
         '<span class="folder-chevron folder-chevron-empty"></span>' +
         'All Notes' +
         '<span class="folder-count">' + totalCount + '</span>' +
@@ -283,6 +293,7 @@
     });
 
     recalcFocusable();
+    setupFolderDropTargets();
   }
 
   function setupTouchEvents(el, path, link) {
@@ -791,10 +802,246 @@
     }
   }
 
+  /* ── Drag & Drop: move notes to folders ─────────────────── */
+  function initDragDrop() {
+    var cards = document.querySelectorAll('.note-card');
+    var dragData = null;
+    var touchClone = null;
+
+    /* Desktop: HTML5 Drag and Drop from note cards */
+    for (var ci = 0; ci < cards.length; ci++) {
+      var card = cards[ci];
+
+      card.addEventListener('dragstart', function(e) {
+        var noteName = this.dataset.noteName;
+        if (!noteName) { e.preventDefault(); return; }
+        e.dataTransfer.setData('text/plain', noteName);
+        e.dataTransfer.effectAllowed = 'move';
+        this.classList.add('dragging');
+      });
+
+      card.addEventListener('dragend', function(e) {
+        this.classList.remove('dragging');
+        clearDragOver();
+      });
+    }
+
+    /* Touch drag support (mobile) */
+    function getCardFromHandle(el) {
+      while (el && !el.classList.contains('note-card')) {
+        el = el.parentElement;
+      }
+      return el;
+    }
+
+    function onTouchStart(e) {
+      var handle = e.target.closest('.note-card-drag-handle');
+      if (!handle) return;
+      var card = getCardFromHandle(handle);
+      if (!card || !card.dataset.noteName) return;
+
+      var touch = e.touches[0];
+      dragData = {
+        card: card,
+        noteName: card.dataset.noteName,
+        startX: touch.clientX,
+        startY: touch.clientY,
+        active: false,
+        clone: null,
+        currentTarget: null
+      };
+    }
+
+    function onTouchMove(e) {
+      if (!dragData) return;
+      e.preventDefault();
+
+      var touch = e.touches[0];
+      var dx = touch.clientX - dragData.startX;
+      var dy = touch.clientY - dragData.startY;
+
+      if (!dragData.active) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+          dragData.active = true;
+          dragData.card.classList.add('dragging');
+
+          /* Create ghost clone */
+          touchClone = dragData.card.cloneNode(true);
+          touchClone.className = 'note-card-drag-clone';
+          touchClone.style.width = (dragData.card.offsetWidth * 0.85) + 'px';
+          document.body.appendChild(touchClone);
+          positionClone(touch);
+        } else {
+          return;
+        }
+      }
+
+      positionClone(touch);
+
+      /* Find folder under finger */
+      touchClone.style.display = 'none';
+      var el = document.elementFromPoint(touch.clientX, touch.clientY);
+      touchClone.style.display = '';
+
+      clearDragOver();
+      var folderLink = el && el.closest('.sidebar-folder-link[data-path]');
+      if (folderLink) {
+        folderLink.classList.add('drag-over');
+        dragData.currentTarget = folderLink;
+      } else {
+        dragData.currentTarget = null;
+      }
+    }
+
+    function positionClone(touch) {
+      if (!touchClone) return;
+      var w = touchClone.offsetWidth;
+      touchClone.style.left = (touch.clientX - w / 2) + 'px';
+      touchClone.style.top = (touch.clientY - 20) + 'px';
+    }
+
+    function onTouchEnd(e) {
+      if (!dragData) return;
+      if (touchClone) {
+        if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+        touchClone = null;
+      }
+      dragData.card.classList.remove('dragging');
+
+      if (dragData.active && dragData.currentTarget) {
+        var destFolder = dragData.currentTarget.dataset.path || '';
+        performMoveNote(dragData.noteName, destFolder, dragData.currentTarget);
+      }
+
+      clearDragOver();
+      dragData = null;
+    }
+
+    function onTouchCancel() {
+      if (touchClone) {
+        if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+        touchClone = null;
+      }
+      if (dragData) {
+        dragData.card.classList.remove('dragging');
+        dragData = null;
+      }
+      clearDragOver();
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchcancel', onTouchCancel);
+  }
+
+  /* ── Folder drop targets ────────────────────────────────── */
+  function setupFolderDropTargets() {
+    var folderLinks = folderSection.querySelectorAll('.sidebar-folder-link[data-path]');
+    for (var fi = 0; fi < folderLinks.length; fi++) {
+      var fl = folderLinks[fi];
+
+      fl.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        this.classList.add('drag-over');
+      });
+
+      fl.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+      });
+
+      fl.addEventListener('dragleave', function(e) {
+        this.classList.remove('drag-over');
+      });
+
+      fl.addEventListener('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove('drag-over');
+        var noteName = e.dataTransfer.getData('text/plain');
+        var destFolder = this.dataset.path || '';
+        if (noteName) {
+          performMoveNote(noteName, destFolder, this);
+        }
+      });
+    }
+  }
+
+  function clearDragOver() {
+    var highlighted = folderSection.querySelectorAll('.sidebar-folder-link.drag-over');
+    for (var hi = 0; hi < highlighted.length; hi++) {
+      highlighted[hi].classList.remove('drag-over');
+    }
+  }
+
+  /* ── Optimistic note move with rollback ─────────────────── */
+  function performMoveNote(noteName, destFolder, folderLinkEl) {
+    /* Skip if note is already in this folder */
+    var card = document.querySelector('.note-card[data-note-name="' + CSS.escape(noteName) + '"]');
+    var currentFolder = card ? card.dataset.noteFolder || '' : '';
+    if (currentFolder === destFolder) {
+      showToast('Note is already in ' + (destFolder || 'root'), 'info');
+      return;
+    }
+
+    /* Optimistically hide the card */
+    var removed = false;
+
+    if (card) {
+      card.style.transition = 'opacity 0.2s, transform 0.2s';
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      removed = true;
+    }
+
+    fetch('/api/note/' + encodeURIComponent(noteName) + '/move', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folder: destFolder })
+    })
+    .then(function(res) {
+      if (!res.ok) return res.json().then(function(d) { throw new Error(d.error || 'Failed to move note'); });
+      return res.json();
+    })
+    .then(function(data) {
+      showToast('Moved to ' + (destFolder || 'root'), 'success');
+      /* Remove the card from the list */
+      if (card && card.parentNode) {
+        card.parentNode.removeChild(card);
+        /* Check if note-list is now empty and show empty state */
+        var noteList = document.querySelector('.note-list');
+        if (noteList && noteList.querySelectorAll('.note-card').length === 0) {
+          var emptyEl = document.createElement('div');
+          emptyEl.className = 'empty';
+          emptyEl.innerHTML = '<p>No notes yet. Create your first one!</p>';
+          noteList.appendChild(emptyEl);
+        }
+      }
+    })
+    .catch(function(err) {
+      /* Rollback: show the card again */
+      if (card && removed) {
+        card.style.opacity = '';
+        card.style.transform = '';
+        /* Restore card to note-list if it was replaced by empty state */
+        var noteList = document.querySelector('.note-list');
+        if (noteList && !noteList.contains(card)) {
+          var emptyEl = noteList.querySelector('.empty');
+          if (emptyEl) emptyEl.remove();
+          noteList.appendChild(card);
+        }
+      }
+      showToast(err.message || 'Failed to move note', 'error');
+    });
+  }
+
   function init() {
     addFolderButton();
     loadFolders();
     setupGlobalOverride();
+    initDragDrop();
   }
 
   if (document.readyState === 'loading') {
