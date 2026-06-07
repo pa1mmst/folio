@@ -51,15 +51,52 @@
 </head>
 <body>
   <div class="app-layout">
-    <aside class="sidebar">
-      <div class="sidebar-brand"><a href="/" class="sidebar-logo">folio</a></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+    <button class="hamburger" id="hamburgerBtn" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="toast-container" id="toastContainer"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand"><a href="/" class="sidebar-logo">folio</a></div>
+        <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Close sidebar">&times;</button>
+      </div>
       <nav class="sidebar-nav">
-        <a href="/" class="sidebar-link{% if active == 'notes' %} active{% endif %}">Notes</a>
-        <a href="/graph" class="sidebar-link{% if active == 'graph' %} active{% endif %}">Graph</a>
+        <a href="/" class="sidebar-link{% if active == 'notes' %} active{% endif %}">
+          <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Notes
+        </a>
+        <a href="/graph" class="sidebar-link{% if active == 'graph' %} active{% endif %}">
+          <svg class="sidebar-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5 8l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Graph
+        </a>
       </nav>
       <div class="sidebar-section">
-        <div class="sidebar-section-title">Tags</div>
-        <div class="sidebar-tags">
+        <div class="sidebar-section-header">
+          <button class="sidebar-collapse-btn" onclick="toggleFolderSection()" id="folderToggle">
+            <svg class="chevron" id="folderChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Folders
+          </button>
+        </div>
+        <div class="sidebar-folders" id="folderSection">
+          <div class="folder-loading">Loading folders...</div>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <button class="sidebar-collapse-btn" onclick="toggleTagSection()" id="tagToggle">
+          <svg class="chevron" id="tagChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Tags
+        </button>
+        <div class="sidebar-tags" id="tagSection">
           {% for tag in tags %}
           <a href="/?tag={{ tag.tag }}" class="sidebar-tag">#{{ tag.tag }}</a>
           {% endfor %}
@@ -70,5 +107,39 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarOverlay').classList.toggle('open');
+  }
+  function toggleFolderSection() {
+    var section = document.getElementById('folderSection');
+    var chevron = document.getElementById('folderChevron');
+    if (section) {
+      section.classList.toggle('collapsed');
+      if (chevron) chevron.classList.toggle('rotated');
+    }
+  }
+  function toggleTagSection() {
+    var section = document.getElementById('tagSection');
+    var chevron = document.getElementById('tagChevron');
+    if (section) {
+      section.classList.toggle('collapsed');
+      if (chevron) chevron.classList.toggle('rotated');
+    }
+  }
+  function showToast(message, type) {
+    var container = document.getElementById('toastContainer');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() {
+      toast.classList.add('toast-exit');
+      setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+    }, 4000);
+  }
+  </script>
 </body>
 </html>

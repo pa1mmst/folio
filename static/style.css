@@ -1974,3 +1974,280 @@
     height: 32px;
   }
 }
+
+/* ── Folder Tree: Context Menu ─────────────────────────── */
+.folder-context-menu {
+  position: fixed;
+  z-index: 500;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  min-width: 170px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  animation: folder-context-in 0.12s ease-out;
+  display: none;
+}
+
+.folder-context-menu.open {
+  display: block;
+}
+
+@keyframes folder-context-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.folder-context-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+  gap: 8px;
+}
+
+.folder-context-menu-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.folder-context-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.folder-context-menu-item-danger {
+  color: #f87171;
+}
+
+.folder-context-menu-item-danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+}
+
+.folder-context-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 8px;
+}
+
+/* ── Folder Tree: Inline Input ─────────────────────────── */
+.folder-inline-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 28px;
+}
+
+.folder-inline-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+  min-width: 0;
+}
+
+.folder-inline-input.invalid {
+  border-color: #f87171;
+  box-shadow: 0 0 0 2px rgba(248, 113, 113, 0.2);
+}
+
+.folder-inline-error {
+  display: none;
+  font-size: 10px;
+  color: #f87171;
+  padding: 1px 8px 2px;
+}
+
+.folder-inline-error.show {
+  display: block;
+}
+
+.folder-inline-confirm,
+.folder-inline-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+
+.folder-inline-confirm:hover {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.folder-inline-cancel:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+/* ── Folder Add Button ──────────────────────────────────── */
+.folder-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.folder-add-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.folder-add-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Folder Tree: Typography for rename mode ───────────── */
+.folder-renaming .sidebar-folder-link {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.folder-context-menu-item svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ── Folder Tree: Focus / Keyboard ─────────────────────── */
+.folder-tree-item[role="treeitem"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.folder-tree-item.selected > .sidebar-folder-link {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+/* ── Optimistic UI animations ──────────────────────────── */
+@keyframes folder-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 40px;
+  }
+}
+
+@keyframes folder-slide-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    max-height: 40px;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+    max-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+/* ── Mobile Context Menu ────────────────────────────────── */
+.folder-context-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 499;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(2px);
+}
+
+.folder-context-overlay.open {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .folder-context-menu {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 8px 8px env(safe-area-inset-bottom, 8px);
+    animation: folder-context-mobile-in 0.25s ease-out;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+    min-width: unset;
+  }
+
+  @keyframes folder-context-mobile-in {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .folder-context-menu-item {
+    padding: 12px 16px;
+    font-size: var(--font-size-base);
+    justify-content: center;
+  }
+
+  .folder-context-menu-item-danger {
+    color: #f87171;
+    font-weight: 500;
+  }
+}
+
+/* ── Folder Tree: Loading / Empty ──────────────────────── */
+.folder-loading {
+  padding: 12px 16px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
