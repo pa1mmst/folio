@@ -1,5 +1,10 @@
 /* ── Folio Design System v2 — Obsidian-inspired ──────────── */
 
+/* ── CSS Custom Properties ───────────────────────────────── */
+:root {
+  --sidebar-width: 260px;
+}
+
 /* ── Base / Reset ─────────────────────────────────────────── */
 ::selection {
   background: var(--accent);
