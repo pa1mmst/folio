@@ -2030,6 +2030,10 @@
     padding: 52px 14px 14px;
   }
 
+  .sidebar.open ~ .main-content {
+    margin-left: var(--sidebar-width);
+  }
+
   .page-title {
     font-family: var(--font-display);
     font-size: var(--font-size-lg);
