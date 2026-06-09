@@ -130,8 +130,28 @@
   color: var(--text-primary);
 }
 
-.sidebar-brand a {
+.sidebar-brand a.sidebar-logo {
   color: inherit;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+.sidebar-logo span {
+  background: linear-gradient(135deg, #f5f3f0 0%, #8a8f98 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.sidebar-logo .logo-dot {
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  color: #c8a050;
+  -webkit-text-fill-color: #c8a050;
+  margin-left: -0.02em;
 }
 
 .sidebar-close {
