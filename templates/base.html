@@ -231,11 +231,13 @@
     async function loadFolders() {
       folderSection.innerHTML = '<div class="folder-loading">Loading folders...</div>';
       try {
+        console.log('[loadFolders] fetch start');
         var res = await fetch('/api/folders');
         if (!res.ok) throw new Error('Failed to load folders');
         folders = await res.json();
         renderTree();
       } catch (e) {
+        console.error('[loadFolders] FAILED:', e);
         folderSection.innerHTML = '<div class="folder-loading" style="color:#f87171">Failed to load folders</div>';
       }
     }
@@ -321,7 +323,7 @@
       var ariaExpanded = hasChildren ? ' aria-expanded="' + expanded + '"' : '';
       var itemId = 'fti-' + data.path.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-]/g, '_');
 
-      html = '';
+      var html = '';
       html += '<div class="folder-tree-item" role="treeitem"' + ariaExpanded + ' id="' + itemId + '">';
       html += '<a href="/?folder=' + encodeURIComponent(data.path) + '" class="sidebar-folder-link' + active + '" style="padding-left:' + pdLeft + 'px;" data-path="' + data.path + '">' + chevron + escapeHtml(name) + countBadge + '</a>';
       if (hasChildren) {
