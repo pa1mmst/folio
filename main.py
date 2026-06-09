@@ -13,7 +13,7 @@ from database import (
     get_all_tags, get_all_links, get_all_note_names, get_backlinks,
     get_notes_by_folder, get_all_folders_with_counts, clear_all_notes,
     add_attachment, get_attachments_for_note, remove_attachment,
-    update_folder_paths_in_db,
+    update_folder_paths_in_db, get_conn,
 )
 from vault import (
     read_note, write_note, delete_note, list_notes, get_folder,
@@ -452,6 +452,7 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
 
       var currentFolder = '';
       var folders = [];
+      var totalCount = 0;
       var focusedIdx = -1;
       var folderItemEls = [];
       var contextMenu = null;
@@ -545,7 +546,9 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
         try {{
           var res = await fetch('/api/folders');
           if (!res.ok) throw new Error('Failed to load folders');
-          folders = await res.json();
+          var data = await res.json();
+          folders = data.folders;
+          totalCount = data.total_count;
           renderTree();
         }} catch (e) {{
           folderSection.innerHTML = '<div class="folder-loading" style="color:#f87171">Failed to load folders</div>';
@@ -589,7 +592,6 @@ def render_page(title, body, active="notes", current_folder="", backlinks=None):
 
       function renderTree() {{
         folderItemEls = [];
-        var totalCount = computeTotalCount(folders);
         var tree = buildTree(folders);
         var activeClass = currentFolder === '' ? ' folder-link-active' : '';
         var html =
@@ -2531,9 +2533,11 @@ async def graph_page():
 def api_folders():
     folders = get_all_folders_with_counts()
     result = []
+    folder_total = 0
     for f in folders:
         folder = f["folder"]
         count = f["count"]
+        folder_total += count
         name = folder.split("/")[-1] if "/" in folder else folder
         parent = folder.rsplit("/", 1)[0] if "/" in folder else ""
         result.append({
@@ -2543,7 +2547,15 @@ def api_folders():
             "path": folder,
             "count": count,
         })
-    return JSONResponse(result)
+    conn = get_conn()
+    total_notes = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+    conn.close()
+    unfiled_count = total_notes - folder_total
+    return JSONResponse({
+        "folders": result,
+        "total_count": total_notes,
+        "unfiled_count": unfiled_count,
+    })
 
 
 @app.get("/api/search")

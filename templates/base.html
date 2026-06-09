@@ -30,6 +30,7 @@
       --radius-full: 9999px;
       --font-display: 'Instrument Serif', serif;
       --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --sidebar-width: 260px;
       --space: 8px;
     }
     * { box-sizing:border-box; margin:0; padding:0; }
@@ -152,6 +153,7 @@
 
     var currentFolder = '';
     var folders = [];
+    var totalCount = 0;
     var contextMenu = null;
     var contextOverlay = null;
     var inlineEl = null;
@@ -234,7 +236,9 @@
         console.log('[loadFolders] fetch start');
         var res = await fetch('/api/folders');
         if (!res.ok) throw new Error('Failed to load folders');
-        folders = await res.json();
+        var data = await res.json();
+        folders = data.folders;
+        totalCount = data.total_count;
         renderTree();
       } catch (e) {
         console.error('[loadFolders] FAILED:', e);
@@ -278,7 +282,6 @@
     }
 
     function renderTree() {
-      var totalCount = computeTotalCount(folders);
       var tree = buildTree(folders);
       var activeClass = currentFolder === '' ? ' folder-link-active' : '';
       var html =
