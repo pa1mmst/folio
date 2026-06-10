@@ -132,26 +132,14 @@
 
 .sidebar-brand a.sidebar-logo {
   color: inherit;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0;
-}
-
-.sidebar-logo span {
-  background: linear-gradient(135deg, #f5f3f0 0%, #8a8f98 100%);
+  background: linear-gradient(135deg, #f5f3f0 0%, #999 100%);
   -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .sidebar-logo .logo-dot {
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-  color: #c8a050;
   -webkit-text-fill-color: #c8a050;
-  margin-left: -0.02em;
 }
 
 .sidebar-close {
@@ -551,10 +539,10 @@
 
 .page-title {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
   color: var(--text-primary);
 }
 
