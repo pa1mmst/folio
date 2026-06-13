@@ -104,6 +104,25 @@
           {% endfor %}
         </div>
       </div>
+      {% if backlinks is not none %}
+      <div class="sidebar-section">
+        <button class="sidebar-collapse-btn" onclick="toggleBacklinkSection()" id="backlinkToggle">
+          <svg class="chevron" id="backlinkChevron" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Backlinks
+        </button>
+        <div class="sidebar-backlinks" id="backlinkSection">
+          {% if backlinks %}
+          {% for bl in backlinks %}
+          <a href="/note/{{ bl.source_note }}" class="sidebar-backlink-item">{{ bl.source_note }}</a>
+          {% endfor %}
+          {% else %}
+          <div class="sidebar-backlink-empty">No backlinks</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
     </aside>
     <main class="main-content">
       {% block content %}{% endblock %}
@@ -125,6 +144,14 @@
   function toggleTagSection() {
     var section = document.getElementById('tagSection');
     var chevron = document.getElementById('tagChevron');
+    if (section) {
+      section.classList.toggle('collapsed');
+      if (chevron) chevron.classList.toggle('rotated');
+    }
+  }
+  function toggleBacklinkSection() {
+    var section = document.getElementById('backlinkSection');
+    var chevron = document.getElementById('backlinkChevron');
     if (section) {
       section.classList.toggle('collapsed');
       if (chevron) chevron.classList.toggle('rotated');
