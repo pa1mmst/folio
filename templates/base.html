@@ -849,8 +849,8 @@
       if (currentFolderVal === destFolder) { showToast('Note is already in ' + (destFolder || 'root'), 'info'); return; }
       var removed = false;
       if (card) { card.style.transition = 'opacity 0.2s, transform 0.2s'; card.style.opacity = '0'; card.style.transform = 'scale(0.95)'; removed = true; }
-      fetch('/api/note/' + encodeURIComponent(noteName) + '/move', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: destFolder })
+      fetch('/api/note/' + encodeURIComponent(noteName), {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder: destFolder })
       }).then(function(res) {
         if (!res.ok) return res.json().then(function(d) { throw new Error(d.error || 'Failed to move note'); });
         return res.json();
@@ -872,6 +872,106 @@
       });
     }
 
+    function showNoteContextMenu(e, noteName) {
+      e.preventDefault();
+      e.stopPropagation();
+      hideContextMenu();
+      var menu = document.getElementById('noteContextMenu');
+      if (!menu) {
+        menu = document.createElement('div');
+        menu.className = 'folder-context-menu';
+        menu.id = 'noteContextMenu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML =
+          '<button class="folder-context-menu-item" data-action="move-to" role="menuitem">' +
+            '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M7 2l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+            'Move to folder\u2026' +
+          '</button>';
+        document.body.appendChild(menu);
+        menu.addEventListener('click', function(ev) {
+          var item = ev.target.closest('.folder-context-menu-item');
+          if (!item) return;
+          var action = item.dataset.action;
+          hideNoteContextMenu();
+          if (action === 'move-to') {
+            var name = menu.dataset.noteName;
+            if (name) showMoveFolderPicker(name);
+          }
+        });
+      }
+      menu.dataset.noteName = noteName;
+      if (isTouchDevice) {
+        contextOverlay.classList.add('open');
+        menu.classList.add('open');
+      } else {
+        var x = Math.min(e.clientX, window.innerWidth - menu.offsetWidth - 8);
+        var y = Math.min(e.clientY, window.innerHeight - menu.offsetHeight - 8);
+        menu.style.left = Math.max(0, x) + 'px';
+        menu.style.top = Math.max(0, y) + 'px';
+        menu.classList.add('open');
+      }
+      menu.focus();
+    }
+
+    function hideNoteContextMenu() {
+      var menu = document.getElementById('noteContextMenu');
+      if (menu) menu.classList.remove('open');
+    }
+
+    function showMoveFolderPicker(noteName) {
+      var picker = document.getElementById('folderPicker');
+      if (!picker) {
+        picker = document.createElement('div');
+        picker.className = 'folder-picker-overlay';
+        picker.id = 'folderPicker';
+        picker.innerHTML =
+          '<div class="folder-picker-dialog">' +
+            '<h3 class="folder-picker-title">Move to folder</h3>' +
+            '<select class="folder-picker-select" id="folderPickerSelect">' +
+              '<option value="">Root (no folder)</option>' +
+            '</select>' +
+            '<div class="folder-picker-actions">' +
+              '<button class="btn" id="folderPickerCancel">Cancel</button>' +
+              '<button class="btn btn-primary" id="folderPickerMove">Move</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(picker);
+        document.getElementById('folderPickerCancel').addEventListener('click', function() {
+          picker.classList.remove('open');
+        });
+        document.getElementById('folderPickerMove').addEventListener('click', function() {
+          var select = document.getElementById('folderPickerSelect');
+          var destFolder = select.value;
+          var name = picker.dataset.noteName;
+          picker.classList.remove('open');
+          if (name) performMoveNote(name, destFolder, null);
+        });
+        picker.addEventListener('click', function(ev) {
+          if (ev.target === picker) picker.classList.remove('open');
+        });
+        document.addEventListener('keydown', function(ev) {
+          if (ev.key === 'Escape' && picker.classList.contains('open')) {
+            picker.classList.remove('open');
+          }
+        });
+      }
+      var select = document.getElementById('folderPickerSelect');
+      select.innerHTML = '<option value="">Root (no folder)</option>';
+      for (var fi = 0; fi < folders.length; fi++) {
+        var opt = document.createElement('option');
+        opt.value = folders[fi].path;
+        opt.textContent = folders[fi].path;
+        select.appendChild(opt);
+      }
+      var card = document.querySelector('.note-card[data-note-name="' + CSS.escape(noteName) + '"]');
+      if (card) {
+        var currentFolder = card.dataset.noteFolder || '';
+        select.value = currentFolder;
+      }
+      picker.dataset.noteName = noteName;
+      picker.classList.add('open');
+    }
+
     function init() {
       createContextMenu();
       loadFolders();
@@ -889,7 +989,16 @@
           this.classList.add('dragging');
         });
         card.addEventListener('dragend', function(e) { this.classList.remove('dragging'); clearDragOver(); });
+        card.addEventListener('contextmenu', function(e) {
+          var name = this.dataset.noteName;
+          if (name) showNoteContextMenu(e, name);
+        });
       }
+      document.addEventListener('click', function(e) {
+        if (!e.target.closest('#noteContextMenu') && !e.target.closest('.note-card')) {
+          hideNoteContextMenu();
+        }
+      });
       function getCardFromHandle(el) { while (el && !el.classList.contains('note-card')) { el = el.parentElement; } return el; }
       function onTouchStart(e) {
         var handle = e.target.closest('.note-card-drag-handle');
