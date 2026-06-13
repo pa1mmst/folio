@@ -370,6 +370,7 @@
       html += '<a href="/?folder=' + encodeURIComponent(data.path) + '" class="sidebar-folder-link' + active + '" style="padding-left:' + pdLeft + 'px;" data-path="' + data.path + '">' + chevron + escapeHtml(name) + countBadge + '</a>';
       html += '<button class="folder-context-btn" data-path="' + data.path + '" aria-label="Folder options" tabindex="-1" type="button">&#x22EE;</button>';
       html += '</div>';
+      html += '<button class="folder-add-subfolder-btn" data-path="' + data.path + '" type="button">+ Subfolder</button>';
       if (hasChildren) {
         html += '<div class="folder-children" id="' + toggleId + '" role="group"' + displayStyle + '>';
         html += renderChildren(data, depth + 1);
@@ -435,6 +436,16 @@
             contextMenu.focus();
           });
         })(contextBtns[ci]);
+      }
+      var subfolderBtns = folderSection.querySelectorAll('.folder-add-subfolder-btn');
+      for (var si = 0; si < subfolderBtns.length; si++) {
+        (function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            showCreateInput(btn.dataset.path);
+          });
+        })(subfolderBtns[si]);
       }
       folderSection.setAttribute('tabindex', '0');
       folderSection.addEventListener('keydown', function(e) {
@@ -647,7 +658,9 @@
         removeInlineInput();
         performRename(path, newName);
       });
-      link.parentElement.insertBefore(form, link.nextSibling);
+      var row = link.closest('.folder-item-row');
+      var refEl = row || link;
+      refEl.parentElement.insertBefore(form, refEl.nextSibling);
       input.focus();
       input.setSelectionRange(0, name.length);
       inlineEl = form;
