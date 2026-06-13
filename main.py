@@ -254,13 +254,14 @@ a:hover { color: var(--accent-hover); }
 """
 
 
-def render_page(request: Request, title, body, active="notes"):
+def render_page(request: Request, title, body, active="notes", backlinks=None):
     tags = get_all_tags()
     return templates.TemplateResponse(request, "page.html", {
         "title": title,
         "body": body,
         "active": active,
         "tags": tags,
+        "backlinks": backlinks,
     })
 
 
@@ -426,7 +427,8 @@ async def view_note(name: str, request: Request):
     </script>
     </div>
     """
-    return render_page(request, name, body)
+    backlinks = get_backlinks(name)
+    return render_page(request, name, body, backlinks=backlinks)
 
 
 @app.get("/edit/{name:path}", response_class=HTMLResponse)
@@ -1187,7 +1189,7 @@ async def edit_note(name: str, folder: str = "", request: Request = None):
                         + '<span class="attachment-name" title="' + f.filename + '">' + f.filename + '</span>'
                         + '<span class="attachment-size">' + formatSize(f.size) + '</span>'
                         + '</div>'
-                        + '<button class="attachment-delete" onclick="deleteAttachment(String.fromCharCode(39) + f.filename + String.fromCharCode(39), this)" title="Delete attachment">&times;</button>'
+                        + '<button class="attachment-delete" data-filename="' + f.filename.replace(/"/g, '&quot;') + '" onclick="deleteAttachment(this.dataset.filename, this)" title="Delete attachment">&times;</button>'
                         + '</div>';
                 }}
                 attachmentsGrid.innerHTML = html;

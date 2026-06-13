@@ -93,7 +93,7 @@ class TestFolders:
         r = client.get("/api/folders")
         assert r.status_code == 200
         data = r.json()
-        assert any(f["id"] == "folder-test" and f["name"] == "folder-test" and f["parent"] == "" for f in data)
+        assert any(f["id"] == "folder-test" and f["name"] == "folder-test" and f["parent"] == "" for f in data["folders"])
 
     def test_home_page_filters_by_folder(self, client):
         client.post("/api/note", json={"name": "filter-me/n1", "content": "n1"})
@@ -174,7 +174,7 @@ class TestFolders:
         r = client.get("/api/folders")
         assert r.status_code == 200
         data = r.json()
-        assert any(f["name"] == "on-disk-folder" for f in data), "Folder on disk should appear in folder API"
+        assert any(f["name"] == "on-disk-folder" for f in data["folders"]), "Folder on disk should appear in folder API"
 
     def test_folder_tree_excludes_removed_folders(self, client):
         """Folders whose directory has been removed from disk should not appear
@@ -196,7 +196,7 @@ class TestFolders:
         r = client.get("/api/folders")
         assert r.status_code == 200
         data = r.json()
-        item = next((f for f in data if f["id"] == "a/b/c"), None)
+        item = next((f for f in data["folders"] if f["id"] == "a/b/c"), None)
         assert item is not None
         assert item["name"] == "c"
         assert item["parent"] == "a/b"
