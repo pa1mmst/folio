@@ -2598,3 +2598,63 @@
     pointer-events: auto;
   }
 }
+
+/* ── Folder Picker Dialog ───────────────────────────────── */
+.folder-picker-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+
+.folder-picker-overlay.open {
+  display: flex;
+}
+
+.folder-picker-dialog {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  animation: modal-in 0.2s ease;
+}
+
+.folder-picker-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.folder-picker-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.folder-picker-select:focus {
+  border-color: var(--accent);
+}
+
+.folder-picker-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
