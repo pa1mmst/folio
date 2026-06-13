@@ -88,7 +88,12 @@
           <button class="sidebar-add-folder-btn" onclick="showCreateInput('')" title="New folder" aria-label="New folder">+</button>
         </div>
         <div class="sidebar-folders" id="folderSection">
-          <div class="folder-loading">Loading folders...</div>
+          <div class="folder-skeleton" id="folderSkeleton">
+            <div class="folder-skeleton-line"></div>
+            <div class="folder-skeleton-line"></div>
+            <div class="folder-skeleton-line"></div>
+            <div class="folder-skeleton-line"></div>
+          </div>
         </div>
       </div>
       <div class="sidebar-section">
@@ -173,7 +178,7 @@
   <script>
   (function() {
     'use strict';
-    var VALID_NAME_RE = /^[a-zA-Z\u0430-\u044F\u0410-\u042F\u0451\u04010-9\s\-_]+$/;
+    var INVALID_NAME_CHARS = /[\/\\:*?"<>|]/;
     var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     var folderSection = document.getElementById('folderSection');
     if (!folderSection) return;
@@ -258,9 +263,14 @@
     }
 
     async function loadFolders() {
-      folderSection.innerHTML = '<div class="folder-loading">Loading folders...</div>';
+      folderSection.innerHTML =
+        '<div class="folder-loading-skeleton">' +
+          '<div class="skeleton-line w-55" style="margin:8px 12px"></div>' +
+          '<div class="skeleton-line w-70" style="margin:8px 12px"></div>' +
+          '<div class="skeleton-line w-45" style="margin:8px 12px"></div>' +
+          '<div class="skeleton-line w-60" style="margin:8px 12px"></div>' +
+        '</div>';
       try {
-        console.log('[loadFolders] fetch start');
         var res = await fetch('/api/folders');
         if (!res.ok) throw new Error('Failed to load folders');
         var data = await res.json();
@@ -351,11 +361,15 @@
       var countBadge = '<span class="folder-count">' + data.count + '</span>';
       var displayStyle = expanded ? '' : ' style="display:none"';
       var ariaExpanded = hasChildren ? ' aria-expanded="' + expanded + '"' : '';
+      var ariaSelected = data.path === currentFolder ? ' aria-selected="true"' : '';
       var itemId = 'fti-' + data.path.replace(/\//g, '-').replace(/[^a-zA-Z0-9\-]/g, '_');
 
       var html = '';
-      html += '<div class="folder-tree-item" role="treeitem"' + ariaExpanded + ' id="' + itemId + '">';
+      html += '<div class="folder-tree-item" role="treeitem"' + ariaExpanded + ariaSelected + ' id="' + itemId + '">';
+      html += '<div class="folder-item-row">';
       html += '<a href="/?folder=' + encodeURIComponent(data.path) + '" class="sidebar-folder-link' + active + '" style="padding-left:' + pdLeft + 'px;" data-path="' + data.path + '">' + chevron + escapeHtml(name) + countBadge + '</a>';
+      html += '<button class="folder-context-btn" data-path="' + data.path + '" aria-label="Folder options" tabindex="-1" type="button">&#x22EE;</button>';
+      html += '</div>';
       if (hasChildren) {
         html += '<div class="folder-children" id="' + toggleId + '" role="group"' + displayStyle + '>';
         html += renderChildren(data, depth + 1);
@@ -397,6 +411,30 @@
         });
         setupTouchEvents(treeItem, path, link);
         treeItem.addEventListener('keydown', handleTreeKeydown);
+      }
+      var contextBtns = folderSection.querySelectorAll('.folder-context-btn');
+      for (var ci = 0; ci < contextBtns.length; ci++) {
+        (function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var p = btn.dataset.path;
+            hideContextMenu();
+            contextMenu.dataset.path = p;
+            var rect = btn.getBoundingClientRect();
+            if (isTouchDevice) {
+              contextOverlay.classList.add('open');
+              contextMenu.classList.add('open');
+            } else {
+              var mx = Math.min(rect.left, window.innerWidth - contextMenu.offsetWidth - 8);
+              var my = Math.min(rect.bottom + 4, window.innerHeight - contextMenu.offsetHeight - 8);
+              contextMenu.style.left = Math.max(0, mx) + 'px';
+              contextMenu.style.top = Math.max(0, my) + 'px';
+              contextMenu.classList.add('open');
+            }
+            contextMenu.focus();
+          });
+        })(contextBtns[ci]);
       }
       folderSection.setAttribute('tabindex', '0');
       folderSection.addEventListener('keydown', function(e) {
@@ -465,8 +503,20 @@
           var link = item.querySelector('.sidebar-folder-link');
           if (link) link.click();
           break;
+        case 'Delete':
+          e.preventDefault();
+          var fp = item.dataset.folderPath;
+          if (fp) confirmAndDelete(fp);
+          break;
         case 'Home': e.preventDefault(); focusFirstItem(); break;
         case 'End': e.preventDefault(); focusLastItem(); break;
+        case 'Delete':
+          e.preventDefault();
+          var delLink = item.querySelector('.sidebar-folder-link[data-path]');
+          if (delLink && delLink.dataset.path) {
+            confirmAndDelete(delLink.dataset.path);
+          }
+          break;
       }
     }
 
@@ -635,6 +685,9 @@
       var submitAction = null;
       confirmBtn.addEventListener('click', function() { if (submitAction) submitAction(); });
       cancelBtn.addEventListener('click', function() { removeInlineInput(); });
+      input.addEventListener('input', function() {
+        this.value = this.value.replace(INVALID_NAME_CHARS, '');
+      });
       input.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') { e.preventDefault(); if (submitAction) submitAction(); }
         else if (e.key === 'Escape') { e.preventDefault(); removeInlineInput(); }
@@ -658,7 +711,7 @@
     function validateName(name) {
       if (!name || !name.trim()) return 'Name is required';
       if (name.length > 100) return 'Name is too long';
-      if (!VALID_NAME_RE.test(name)) return 'Only letters, numbers, hyphens, underscores, and spaces allowed';
+      if (INVALID_NAME_CHARS.test(name)) return 'Characters /\\:*?"<>| are not allowed';
       return '';
     }
 
@@ -730,8 +783,17 @@
 
     function confirmAndDelete(path) {
       var name = getLeafName(path);
-      if (!confirm('Delete folder "' + name + '" and move its notes to root?')) return;
-      performDelete(path);
+      showToast('Delete "' + name + '"? Notes move to root.', 'info');
+      var toastEl = document.getElementById('toastContainer').lastChild;
+      var confirmBtn = document.createElement('button');
+      confirmBtn.className = 'toast-btn toast-btn-confirm';
+      confirmBtn.textContent = 'Delete';
+      confirmBtn.addEventListener('click', function() {
+        if (toastEl.parentNode) toastEl.remove();
+        performDelete(path);
+      });
+      toastEl.appendChild(confirmBtn);
+      toastEl.classList.add('toast-confirm');
     }
 
     function setupGlobalOverride() {

@@ -2301,7 +2301,8 @@
   border-radius: var(--radius-sm);
 }
 
-.folder-tree-item.selected > .sidebar-folder-link {
+.folder-tree-item.selected > .sidebar-folder-link,
+.folder-tree-item[aria-selected="true"] > .folder-item-row > .sidebar-folder-link {
   background: var(--accent-muted);
   color: var(--accent);
 }
@@ -2390,4 +2391,173 @@
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   text-align: center;
+}
+
+.folder-loading-skeleton {
+  padding: 8px 0;
+}
+
+/* ── Folder Item Row (link + context button) ──────────── */
+.folder-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.folder-item-row .sidebar-folder-link {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Folder Context Button (three dots) ──────────────── */
+.folder-context-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  flex-shrink: 0;
+  margin-right: 6px;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  padding: 0;
+}
+
+.folder-tree-item:hover .folder-context-btn,
+.folder-tree-item:focus-within .folder-context-btn,
+.folder-context-btn:focus-visible {
+  opacity: 1;
+}
+
+.folder-context-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.folder-context-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .folder-context-btn {
+    opacity: 1;
+  }
+}
+
+/* ── Toast confirmation buttons ──────────────────────── */
+.toast-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.toast-btn-confirm {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.toast-btn-confirm:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.toast-btn-cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.toast-btn-cancel:hover {
+  color: #fff;
+}
+
+.folder-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+}
+
+.folder-skeleton-line {
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-hover) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite var(--ease-smooth);
+}
+
+.folder-skeleton-line:nth-child(1) { width: 75%; }
+.folder-skeleton-line:nth-child(2) { width: 55%; }
+.folder-skeleton-line:nth-child(3) { width: 65%; }
+.folder-skeleton-line:nth-child(4) { width: 45%; }
+
+/* ── Folder Tree: More button ─────────────────────────── */
+.sidebar-folder-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-left: auto;
+  margin-right: 2px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar-folder-link:hover .sidebar-folder-more-btn,
+.sidebar-folder-link:focus-within .sidebar-folder-more-btn,
+.sidebar-folder-more-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-folder-more-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-folder-more-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (max-width: 768px) {
+  .sidebar-folder-more-btn {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
