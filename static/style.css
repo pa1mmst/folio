@@ -131,6 +131,8 @@
 }
 
 .sidebar-brand a.sidebar-logo {
+  font-size: 28px;
+  font-weight: 700;
   color: inherit;
   background: linear-gradient(135deg, #f5f3f0 0%, #999 100%);
   -webkit-background-clip: text;
